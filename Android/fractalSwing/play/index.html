@@ -153,6 +153,7 @@ uniform float uBands;
 uniform float uInvert;
 uniform int uInsideMode;    // 0 solid, 1 trap, 2 stripes
 uniform vec3 uInsideColor;
+uniform float uFade;        // 0..1: darken the far exterior (few iterations) so the structure glows
 
 #ifndef FRACTAL
 #define FRACTAL 0
@@ -307,6 +308,10 @@ void main() {
         else col = palette(stripeAcc / float(max(n, 1)) * uColorDensity + uColorOffset) * uInsideColor;
     }
 
+#if FRACTAL != 6 && FRACTAL != 7
+    if (!inside) col *= mix(1.0, smoothstep(0.0, 10.0, smoothIter), uFade);
+#endif
+
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
     col = mix(vec3(lum), col, uSat);
     col = (col - 0.5) * uContrast + 0.5;
@@ -367,7 +372,9 @@ void main() {
         g += texture(uFrac, vUv + vec2(0.0, px.y) * 2.0).rgb;
         g += texture(uFrac, vUv - vec2(0.0, px.y) * 2.0).rgb;
         g /= 12.0;
-        col += g * g * uGlow;
+        // bright pass: only what's already bright blooms, so a bright far field doesn't wash out
+        vec3 b = max(g - vec3(0.35), vec3(0.0));
+        col += b * b * uGlow * 2.2;
     }
 
     if (uFbMode != 0) {
@@ -386,6 +393,9 @@ void main() {
     }
 
     col += vec3(uFlash);
+    // soft clip: scale an over-bright colour down instead of clipping it to white
+    float mx = max(col.r, max(col.g, col.b));
+    if (mx > 1.0) col /= mx;
     fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 const BLIT_SRC = `#version 300 es
@@ -497,7 +507,7 @@ class Params {
   constructor(){
     Object.assign(this, {
       family:0, julia:1, iters:120, bailout:16, spin:0, timeScale:1, masterAmp:1, drift:0, paused:false, kaleido:0, mirrorX:false, mirrorY:false,
-      colorMode:0, trapType:0, trapMix:0, stripe:3, palette:1, palC:[1,1,1], palD:[0,.33,.67], colorSpeed:.02, density:1, sat:1.1, bright:1, contrast:1.05, gamma:1, bands:0, invert:false, insideMode:0, insideColor:[.02,.02,.05],
+      colorMode:0, trapType:0, trapMix:0, stripe:3, palette:1, palC:[1,1,1], palD:[0,.33,.67], colorSpeed:.02, density:1, sat:1.1, bright:1, contrast:1.05, gamma:1, fade:.65, bands:0, invert:false, insideMode:0, insideColor:[.02,.02,.05],
       glow:.5, glowRadius:3, fbMode:0, fbDecay:.85, fbHue:0, ca:.3, vignette:.35, grain:.1, scan:0, quality:0,
       audioOn:false, reactivity:1, beatSens:1, mapZoomKick:.12, mapHue:0, mapBright:.15, mapGlow:.4, mapFlash:.08, mapCa:.5, mapIters:0
     });
@@ -568,6 +578,7 @@ class Params {
       sl("bright","Brightness",.2,2.5,()=>P.bright,v=>P.bright=v),
       sl("contrast","Contrast",.3,2.5,()=>P.contrast,v=>P.contrast=v),
       sl("gamma","Gamma",.4,2.5,()=>P.gamma,v=>P.gamma=v),
+      sl("fade","Exterior fade",0,1,()=>P.fade,v=>P.fade=v,{help:"Darkens the far outside so the structure glows."}),
       sl("bands","Posterize bands (0 = off)",0,16,()=>P.bands,v=>P.bands=v,{fmt:v=>v.toFixed(0)}),
       tg("invert","Invert",()=>P.invert,v=>P.invert=v),
       ch("trapType","Orbit trap shape",TRAP_TYPES,()=>P.trapType,v=>P.trapType=v),
@@ -656,7 +667,7 @@ class Params {
     this.palette=ri(PALETTES.length);
     if(this.palette===PAL_CUSTOM) for(let i=0;i<3;i++){ this.palC[i]=rf(.5,2); this.palD[i]=rf(0,1); }
     this.density = [6,7].includes(this.family)?rf(.3,2):rf(.4,4);
-    this.colorSpeed=rf(-.06,.06); this.sat=rf(.9,1.4); this.bright=rf(.9,1.2); this.contrast=rf(.95,1.3); this.gamma=rf(.8,1.2);
+    this.colorSpeed=rf(-.06,.06); this.sat=rf(.9,1.4); this.bright=rf(.9,1.2); this.contrast=rf(.95,1.3); this.gamma=rf(.8,1.2); this.fade=rf(.3,.9);
     this.bands=chance(.12)?rf(3,10):0; this.invert=chance(.1); this.insideMode=ri(3);
     if(chance(.5)){ this.insideColor=[rf(0,.08),rf(0,.08),rf(0,.12)]; } else { this.insideColor=[rf(.1,1),rf(.1,1),rf(.1,1)]; }
     this.kaleido=chance(.25)?1+ri(KALEIDO.length-1):0; this.mirrorX=chance(.15); this.mirrorY=chance(.1);
@@ -695,7 +706,7 @@ const PRESETS = [
   {name:"Power Bloom",blurb:"Multibrot Julia whose exponent breathes between 2 and 5.",apply:p=>{ p.family=3;p.julia=1;p.iters=100; sw(p.power,3.5,1.5,26,4); sw(p.cx,.35,.2,17); sw(p.cy,.4,.2,11,0,.25); sw(p.zoom,.1,.3,39); sw(p.rot,0,.3,33); p.palette=4;p.density=1.4;p.colorSpeed=.03;p.colorMode=2;p.stripe=4; p.kaleido=0;p.glow=.7;p.fbMode=3;p.fbDecay=.55;p.ca=.3; }},
   {name:"Newton Petals",blurb:"Newton's method basins, perturbed and relaxed into petals.",apply:p=>{ p.family=8;p.julia=1;p.iters=48; sw(p.cx,.1,.35,29); sw(p.cy,0,.35,23,0,.25); sw(p.extra,1,.35,19,4); sw(p.zoom,-.3,.3,45); p.spin=3; p.palette=0;p.density=1;p.colorMode=3;p.trapMix=.2;p.trapType=0; p.sat=1.2;p.contrast=1.1;p.glow=.5;p.fbMode=0;p.ca=.25;p.vignette=.3; }},
   {name:"Phoenix Breath",blurb:"The Phoenix fractal; its feedback term swings so the plumes open and close.",apply:p=>{ p.family=4;p.julia=1;p.iters=120; sw(p.cx,.5667,.08,23); sw(p.cy,-.5,.12,15,4); sw(p.zoom,.3,.3,37); sw(p.rot,1.5708,.1,41); p.palette=6;p.density=1.8;p.colorSpeed=.02;p.colorMode=0; p.insideMode=1;p.insideColor=[.6,.3,.9]; p.glow=.8;p.fbMode=2;p.fbDecay=.65;p.ca=.4;p.grain=.12; }},
-  {name:"Box Fold Tunnel",blurb:"A 2D Mandelbox with feedback zoom: an endless folding tunnel.",apply:p=>{ p.family=9;p.julia=0;p.iters=36;p.bailout=64; sw(p.fold,2.1,.35,31,4); sw(p.extra,.5,.15,21); sw(p.cx,0,.3,27,6); sw(p.cy,0,.3,19,6); sw(p.zoom,-1.2,.4,49); p.spin=2; p.palette=2;p.density=.9;p.colorSpeed=.025;p.colorMode=0;p.gamma=.9; p.kaleido=6; sw(p.kaleidoRot,0,.5,60); p.glow=1.2;p.glowRadius=5;p.fbMode=1;p.fbDecay=.9;p.fbZoom.center=.02;p.fbRot.center=.006;p.fbHue=.003; p.ca=.8;p.vignette=.55; }},
+  {name:"Box Fold Tunnel",blurb:"A 2D Mandelbox with feedback zoom: an endless folding tunnel.",apply:p=>{ p.family=9;p.julia=0;p.iters=14;p.bailout=64; sw(p.fold,2.1,.35,31,4); sw(p.extra,.5,.15,21); sw(p.cx,0,.3,27,6); sw(p.cy,0,.3,19,6); sw(p.zoom,-.6,.4,49); p.spin=2; p.palette=2;p.density=.9;p.colorSpeed=.025;p.colorMode=0;p.gamma=.9;p.insideMode=1;p.fade=.3; p.kaleido=6; sw(p.kaleidoRot,0,.5,60); p.glow=1.2;p.glowRadius=5;p.fbMode=1;p.fbDecay=.9;p.fbZoom.center=.02;p.fbRot.center=.006;p.fbHue=.003; p.ca=.8;p.vignette=.55; }},
   {name:"Mandel Dive",blurb:"The Mandelbrot set itself, slowly zooming into the seahorse valley while z₀ wobbles.",apply:p=>{ p.family=0;p.julia=0;p.iters=260; sw(p.panX,-.7453,0,30); sw(p.panY,.1127,0,30); sw(p.zoom,5,4,120,1,.25); sw(p.cx,0,.06,17); sw(p.cy,0,.06,13,0,.25); sw(p.rot,0,0,30); p.spin=.8; p.palette=1;p.density=2.5;p.colorSpeed=.04;p.colorMode=0;p.contrast=1.15; p.glow=.4;p.fbMode=0;p.ca=.3;p.vignette=.3; }},
   {name:"Sine Silk",blurb:"The sine map Julia set: silk ribbons that stretch and fold.",apply:p=>{ p.family=10;p.julia=1;p.iters=60;p.bailout=50; sw(p.cx,1,.25,23,4); sw(p.cy,.1,.3,17,0,.25); sw(p.zoom,-.8,.4,41); sw(p.rot,0,.25,35); p.palette=6;p.density=1.2;p.colorSpeed=-.015;p.colorMode=2;p.stripe=2.5; p.insideMode=2;p.insideColor=[.5,.6,1]; p.glow=.6;p.fbMode=3;p.fbDecay=.5;p.ca=.35; }},
   {name:"Feedback Storm",blurb:"Tricorn with heavy feedback, hue rotation and an 8-fold kaleidoscope: maximum trip.",apply:p=>{ p.family=2;p.julia=1;p.iters=110; sw(p.cx,-.3,.4,13); sw(p.cy,.6,.4,9,0,.25); sw(p.zoom,0,.6,23,4); sw(p.rot,0,.8,19); p.spin=6; p.palette=0;p.density=2.2;p.colorSpeed=.08;p.colorMode=0;p.sat=1.4; p.kaleido=7; sw(p.kaleidoRot,0,1.5,31); p.glow=1.5;p.glowRadius=6;p.fbMode=2;p.fbDecay=.88;p.fbHue=.012; sw(p.fbZoom,.015,.02,11); sw(p.fbRot,.01,.03,17); p.ca=1.5;p.grain=.25;p.vignette=.5; p.mapZoomKick=.3;p.mapFlash=.12;p.mapCa=1.5;p.mapHue=.3; }},
@@ -769,7 +780,7 @@ class Renderer {
     const gl=canvas.getContext("webgl2",{antialias:false,alpha:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:"high-performance"});
     this.gl=gl; if(!gl) return;
     this.progs={}; this.err=null; this.animT=0; this.last=0; this.frameEma=16; this.fps=0; this.slowSince=-1; this.fastSince=-1; this.lastScaleChange=0;
-    this.scale=.6; this.cur=0; this.sig=new Float32Array(6); this.w=1; this.h=1; this.shotCb=null;
+    this.scale=.6; this.cur=0; this.refresh=16.7; this.refreshSince=0; this.sig=new Float32Array(6); this.w=1; this.h=1; this.shotCb=null;
     try{
       this.vs=this.compile(gl.VERTEX_SHADER,VERT_SRC,"vert");
       this.post=this.link(POST_SRC,"","post"); this.blit=this.link(BLIT_SRC,"","blit");
@@ -840,7 +851,7 @@ class Renderer {
     this.v3(fp,"uPalA",pal.a); this.v3(fp,"uPalB",pal.b);
     if(p.palette===PAL_CUSTOM){ this.v3(fp,"uPalC",p.palC); this.v3(fp,"uPalD",p.palD); } else { this.v3(fp,"uPalC",pal.c); this.v3(fp,"uPalD",pal.d); }
     this.f(fp,"uColorOffset",p.hue.value+p.colorSpeed*this.animT+p.mapHue*bass*.5); this.f(fp,"uColorDensity",p.density*p.densitySw.value);
-    this.f(fp,"uSat",p.sat); this.f(fp,"uBright",p.bright*(1+p.mapBright*level)); this.f(fp,"uContrast",p.contrast); this.f(fp,"uGamma",p.gamma);
+    this.f(fp,"uSat",p.sat); this.f(fp,"uBright",p.bright*(1+p.mapBright*level)); this.f(fp,"uContrast",p.contrast); this.f(fp,"uGamma",p.gamma); this.f(fp,"uFade",p.fade);
     this.f(fp,"uBands",p.bands); this.f(fp,"uInvert",p.invert?1:0); this.i(fp,"uInsideMode",p.insideMode); this.v3(fp,"uInsideColor",p.insideColor);
     gl.drawArrays(gl.TRIANGLES,0,3);
     // pass 2
@@ -862,11 +873,16 @@ class Renderer {
     if(this.shotCb){ const cb=this.shotCb; this.shotCb=null; try{ this.canvas.toBlob(b=>cb(b),"image/png"); }catch(e){ cb(null); } }
     // pacing
     const ms=dt*1000; this.frameEma=this.frameEma*.9+ms*.1; this.fps=1000/Math.max(this.frameEma,1);
+    // display cadence: the shortest recent interval; a 30 Hz-capped surface must not read as "GPU too slow"
+    if(ms>4&&ms<this.refresh) this.refresh=ms;
+    if(now-this.refreshSince>3){ this.refreshSince=now; this.refresh=Math.min(this.refresh*1.15,40); }
+    const slowThresh=Math.max(24,this.refresh*1.5);
+    const fast=this.frameEma<12||(this.refresh<18&&this.frameEma<this.refresh*1.1&&this.scale<.7);
     const fixed=p.renderScaleFor();
     if(fixed>0){ if(Math.abs(fixed-this.scale)>.01&&now-this.lastScaleChange>.5){ this.lastScaleChange=now; this.setScale(fixed); } }
     else if(now-this.lastScaleChange>1.5){
-      if(this.frameEma>24){ if(this.slowSince<0) this.slowSince=now; if(now-this.slowSince>1.2&&this.scale>.3){ this.lastScaleChange=now; this.slowSince=-1; this.fastSince=-1; this.setScale(Math.max(.3,this.scale-.1)); } } else this.slowSince=-1;
-      if(this.frameEma<12){ if(this.fastSince<0) this.fastSince=now; if(now-this.fastSince>4&&this.scale<.9){ this.lastScaleChange=now; this.fastSince=-1; this.slowSince=-1; this.setScale(Math.min(1,this.scale+.1)); } } else this.fastSince=-1;
+      if(this.frameEma>slowThresh){ if(this.slowSince<0) this.slowSince=now; if(now-this.slowSince>1.2&&this.scale>.3){ this.lastScaleChange=now; this.slowSince=-1; this.fastSince=-1; this.setScale(Math.max(.3,this.scale-.1)); } } else this.slowSince=-1;
+      if(fast){ if(this.fastSince<0) this.fastSince=now; if(now-this.fastSince>4&&this.scale<.9){ this.lastScaleChange=now; this.fastSince=-1; this.slowSince=-1; this.setScale(Math.min(1,this.scale+.1)); } } else this.fastSince=-1;
     }
   }
 }
