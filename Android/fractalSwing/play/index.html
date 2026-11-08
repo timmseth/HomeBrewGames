@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#07070f">
+<title>fractalSwing</title>
+<meta name="description" content="fractalSwing — an interactive fractal animation generator. Eleven fractal families, every parameter on a live-adjustable swing, audio-reactive. Web version of the Android app.">
+<style>
+:root{--accent:#7cf2ff;--accent2:#ff5cc8;--text:#f2f2fa;--dim:#a0a0b8;--bg:#07070f;--sheet:rgba(11,11,22,.9);--card:rgba(255,255,255,.08)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,system-ui,-apple-system,sans-serif;overflow:hidden;overscroll-behavior:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+#fab{position:fixed;top:calc(14px + env(safe-area-inset-top));right:14px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;font-size:22px;font-weight:700;cursor:pointer;z-index:5;backdrop-filter:blur(6px)}
+#hint{position:fixed;top:calc(68px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:92vw;background:rgba(0,0,0,.6);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:12px;font-size:13px;text-align:center;z-index:5;transition:opacity .4s;pointer-events:none}
+#hint.hidden{opacity:0}
+#nogl{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg);z-index:9;line-height:1.5}
+#panel{position:fixed;left:0;right:0;bottom:0;height:46vh;max-height:620px;background:var(--sheet);backdrop-filter:blur(10px);border-radius:18px 18px 0 0;display:flex;flex-direction:column;z-index:6;padding:8px 12px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.5);transform:translateY(0);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+#panel.hidden{transform:translateY(110%)}
+@media (orientation:landscape) and (max-height:520px){#panel{height:62vh}}
+@media (min-width:900px){#panel{left:auto;right:16px;bottom:16px;width:420px;height:min(76vh,760px);border-radius:18px}#panel.hidden{transform:translateX(130%)}}
+.head{display:flex;align-items:center;gap:4px}
+.head .title{flex:1;min-width:0}
+.head .title b{color:var(--accent);font-size:15px;font-family:"Segoe UI Semibold","Roboto Condensed",system-ui,sans-serif}
+.head .title div{color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{background:none;border:0;color:var(--text);font-size:18px;padding:4px 10px;cursor:pointer;border-radius:8px}
+.ib:hover{background:var(--card)}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:4px 0}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;color:var(--dim);font-weight:700;font-size:12px;padding:8px 12px;border-radius:10px;cursor:pointer;white-space:nowrap}
+.tab.on{color:var(--accent);background:rgba(124,242,255,.16)}
+.content{flex:1;overflow-y:auto;padding:4px 0 24px;scrollbar-width:thin}
+.row{padding:4px}
+.row .top{display:flex;font-size:13px}
+.row .top span:first-child{flex:1}
+.row .top .val{color:var(--accent)}
+.row .help{color:var(--dim);font-size:10.5px;margin:0 2px 2px}
+input[type=range]{width:100%;margin:6px 0 2px;accent-color:var(--accent);height:22px}
+.choice{display:flex;align-items:center;padding:6px 4px;font-size:14px;gap:8px}
+.choice span{flex:1}
+select{background:#14141f;color:var(--text);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:6px 8px;font-size:13px;max-width:60%}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;font-size:14px;cursor:pointer}
+.sw{position:relative;width:40px;height:22px;border-radius:11px;background:rgba(255,255,255,.18);transition:background .2s;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on .sw{background:var(--accent)}
+.toggle.on .sw::after{left:21px}
+.sec{color:var(--accent2);font-size:12px;font-weight:700;padding:12px 4px 4px}
+.note{color:var(--dim);font-size:11.5px;padding:2px 4px 6px;line-height:1.4}
+.btnrow{display:flex;gap:6px;padding:3px 2px}
+.btn{flex:1;background:var(--card);color:var(--text);border:1px solid rgba(124,242,255,.5);border-radius:10px;padding:9px 10px;font-size:13px;cursor:pointer;text-align:center;text-decoration:none}
+.btn.pink{border-color:rgba(255,92,200,.6)}
+.btn:hover{background:rgba(255,255,255,.14)}
+.card{background:var(--card);border-radius:12px;padding:6px 10px;margin:3px 0}
+.card.dim{background:rgba(255,255,255,.04)}
+.card .chead{display:flex;align-items:center;gap:6px;cursor:pointer;min-height:30px}
+.card .chead b{flex:1;font-size:14px}
+.card .chead .ro{color:var(--accent);font-size:11.5px;text-align:right}
+.card .chead .sw{margin-left:4px}
+.status{font-size:11.5px;color:var(--dim);padding:0 4px 8px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="nogl"><div><b>fractalSwing needs WebGL2.</b><br>Your browser didn't give us a WebGL2 context. Try Chrome, Firefox, Edge or Safari 15+, or grab the Android APK from the repo.</div></div>
+<button id="fab" title="Controls (H)">≡</button>
+<div id="hint" class="hidden"></div>
+<div id="panel">
+  <div class="head">
+    <div class="title"><b>fractalSwing</b><div id="status">…</div></div>
+    <button class="ib" id="bSnap" title="Snapshot (S)">📷</button>
+    <button class="ib" id="bRand" title="Randomize (R)">🎲</button>
+    <button class="ib" id="bFull" title="Fullscreen (F)">⛶</button>
+    <button class="ib" id="bHide" title="Hide (H)">✕</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="content" id="content"></div>
+</div>
+<script>
+"use strict";
+// ============================================================ shaders (identical to the Android app's assets)
+const VERT_SRC = `#version 300 es
+// fractalSwing — fullscreen triangle. No vertex buffer: bind an empty VAO and
+//   glDrawArrays(GL_TRIANGLES, 0, 3)
+// vNdc: -1..1 across the viewport (x right, y up). vUv: 0..1.
+
+out vec2 vNdc;
+out vec2 vUv;
+
+void main() {
+    vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)) * 2.0 - 1.0;
+    vNdc = p;
+    vUv = p * 0.5 + 0.5;
+    gl_Position = vec4(p, 0.0, 1.0);
+}`;
+const FRACTAL_SRC = `#version 300 es
+// fractalSwing — the fractal pass. One program per family (FRACTAL is a compile-time define),
+// rendered into the render-scale FBO. Everything that "swings" arrives as a uniform.
+//
+//   FRACTAL 0  Quadratic   z = z^2 + c
+//           1  Burning Ship z = (|re z| + i|im z|)^2 + c
+//           2  Tricorn     z = conj(z)^2 + c
+//           3  Multibrot   z = z^power + c
+//           4  Phoenix     z' = z^2 + re c + im c * z_prev
+//           5  Celtic      z = (|re z^2|, im z^2) + c
+//           6  Ducks       z = log(re z + i|im z|) + c          (orbit-average colouring)
+//           7  Kali        z = |z| / |z|^2 + c                  (orbit-average colouring)
+//           8  Newton      z -= relax * (z^3 + c z - 1) / (3 z^2 + c)
+//           9  Box Fold    2D Mandelbox: box fold, sphere fold, z = fold * z + c
+//          10  Sine        z = c * sin(z)
+//
+// uJulia = 1: z0 = pixel, c = uC (Julia form).  uJulia = 0: z0 = uC, c = pixel (Mandelbrot form).
+
+precision highp float;
+precision highp int;
+
+in vec2 vNdc;
+in vec2 vUv;
+out vec4 fragColor;
+
+uniform vec2 uRes;
+uniform float uTime;
+uniform vec2 uCenter;
+uniform float uScale;       // half-height of the view in fractal units
+uniform float uRot;
+uniform vec2 uC;
+uniform float uPower;
+uniform float uFold;
+uniform float uExtra;
+uniform int uIters;
+uniform float uBailout;
+uniform int uJulia;
+uniform int uKaleido;
+uniform float uKaleidoRot;
+uniform int uMirror;
+
+uniform int uColorMode;     // 0 smooth iteration, 1 orbit trap, 2 stripes, 3 angle
+uniform int uTrapType;      // 0 point, 1 cross, 2 ring
+uniform vec2 uTrap;
+uniform float uTrapMix;
+uniform float uStripe;
+uniform vec3 uPalA;
+uniform vec3 uPalB;
+uniform vec3 uPalC;
+uniform vec3 uPalD;
+uniform float uColorOffset;
+uniform float uColorDensity;
+uniform float uSat;
+uniform float uBright;
+uniform float uContrast;
+uniform float uGamma;
+uniform float uBands;
+uniform float uInvert;
+uniform int uInsideMode;    // 0 solid, 1 trap, 2 stripes
+uniform vec3 uInsideColor;
+
+#ifndef FRACTAL
+#define FRACTAL 0
+#endif
+
+const float PI = 3.14159265359;
+
+vec2 cmul(vec2 a, vec2 b) { return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
+vec2 cdiv(vec2 a, vec2 b) {
+    float d = max(dot(b, b), 1e-20);
+    return vec2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / d;
+}
+vec2 cpow(vec2 z, float p) {
+    float r = length(z);
+    if (r < 1e-12) return vec2(0.0);
+    float th = atan(z.y, z.x);
+    float rp = pow(r, p);
+    return rp * vec2(cos(p * th), sin(p * th));
+}
+vec2 clog(vec2 z) { return vec2(log(max(length(z), 1e-20)), atan(z.y, z.x)); }
+vec2 csin(vec2 z) { return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y)); }
+
+vec3 palette(float t) { return uPalA + uPalB * cos(2.0 * PI * (uPalC * t + uPalD)); }
+
+float trapDist(vec2 z) {
+    if (uTrapType == 0) return length(z - uTrap);
+    if (uTrapType == 1) return min(abs(z.x - uTrap.x), abs(z.y - uTrap.y));
+    return abs(length(z - uTrap) - 0.5);
+}
+
+void main() {
+    // view-space coordinates: aspect-correct, y up, screen centre at 0
+    vec2 q = vNdc * vec2(uRes.x / uRes.y, 1.0);
+    if ((uMirror & 1) != 0) q.x = abs(q.x);
+    if ((uMirror & 2) != 0) q.y = abs(q.y);
+    if (uKaleido > 1) {
+        float seg = 2.0 * PI / float(uKaleido);
+        float a = atan(q.y, q.x) + uKaleidoRot;
+        a = mod(a, seg);
+        a = abs(a - seg * 0.5);
+        q = length(q) * vec2(cos(a), sin(a));
+    }
+    float cr = cos(uRot);
+    float sr = sin(uRot);
+    q = vec2(q.x * cr - q.y * sr, q.x * sr + q.y * cr) * uScale + uCenter;
+
+    vec2 z;
+    vec2 c;
+    if (uJulia == 1) { z = q; c = uC; } else { z = uC; c = q; }
+
+    float trapMin = 1e9;
+    float stripeAcc = 0.0;
+    float orbitAcc = 0.0;
+    vec2 zp = vec2(0.0);
+    vec2 f = vec2(1.0);
+    int n = uIters;
+    int i = 0;
+    bool escaped = false;
+    float b2 = uBailout * uBailout;
+
+    for (i = 0; i < n; i++) {
+#if FRACTAL == 0
+        z = cmul(z, z) + c;
+#elif FRACTAL == 1
+        z = abs(z);
+        z = cmul(z, z) + c;
+#elif FRACTAL == 2
+        z = vec2(z.x, -z.y);
+        z = cmul(z, z) + c;
+#elif FRACTAL == 3
+        z = cpow(z, uPower) + c;
+#elif FRACTAL == 4
+        vec2 zn = cmul(z, z) + vec2(c.x, 0.0) + c.y * zp;
+        zp = z;
+        z = zn;
+#elif FRACTAL == 5
+        vec2 z2 = cmul(z, z);
+        z = vec2(abs(z2.x), z2.y) + c;
+#elif FRACTAL == 6
+        z = clog(vec2(z.x, abs(z.y))) + c;
+#elif FRACTAL == 7
+        z = abs(z) / max(dot(z, z), 1e-12) + c;
+#elif FRACTAL == 8
+        vec2 z2 = cmul(z, z);
+        f = cmul(z2, z) + cmul(uC, z) - vec2(1.0, 0.0);
+        vec2 df = 3.0 * z2 + uC;
+        z = z - uExtra * cdiv(f, df);
+#elif FRACTAL == 9
+        z = clamp(z, -1.0, 1.0) * 2.0 - z;
+        float r2b = dot(z, z);
+        float mr = max(uExtra * uExtra, 1e-4);
+        if (r2b < mr) z *= 1.0 / mr;
+        else if (r2b < 1.0) z /= r2b;
+        z = uFold * z + c;
+#elif FRACTAL == 10
+        z = cmul(c, csin(z));
+#endif
+        float m2 = dot(z, z);
+        trapMin = min(trapMin, trapDist(z));
+        stripeAcc += 0.5 + 0.5 * sin(uStripe * atan(z.y, z.x));
+#if FRACTAL == 6 || FRACTAL == 7
+        orbitAcc += log(1.0 + m2);
+#elif FRACTAL == 8
+        if (dot(f, f) < 1e-14) { escaped = true; break; }
+#elif FRACTAL == 10
+        if (abs(z.y) > uBailout) { escaped = true; break; }
+#else
+        if (m2 > b2) { escaped = true; break; }
+#endif
+    }
+
+    bool inside;
+    float smoothIter;
+#if FRACTAL == 6 || FRACTAL == 7
+    inside = false;
+    smoothIter = 6.0 * orbitAcc / float(max(n, 1));
+#elif FRACTAL == 8
+    inside = !escaped;
+    if (escaped) {
+        float lf = log(max(length(f), 1e-30));
+        smoothIter = float(i) + 1.0 - log(max(log(1e-7) / min(lf, -1e-6), 1e-6)) / log(2.0);
+    } else smoothIter = float(n);
+#else
+    inside = !escaped;
+    if (escaped) {
+#if FRACTAL == 3
+        float pw = max(uPower, 1.05);
+#elif FRACTAL == 9
+        float pw = max(abs(uFold), 1.05);
+#elif FRACTAL == 10
+        float pw = 2.718;
+#else
+        float pw = 2.0;
+#endif
+        float lz = 0.5 * log(max(dot(z, z), 1.0001));
+        float lb = log(max(uBailout, 1.0001));
+        smoothIter = float(i) + 1.0 - log(max(lz / lb, 1e-6)) / log(pw);
+    } else smoothIter = float(n);
+#endif
+
+    float v;
+    if (uColorMode == 0) v = sqrt(max(smoothIter, 0.0)) * 0.18;
+    else if (uColorMode == 1) v = trapMin;
+    else if (uColorMode == 2) v = stripeAcc / float(max(i, 1));
+    else v = atan(z.y, z.x) / (2.0 * PI) + 0.5;
+    if (uTrapMix > 0.0 && uColorMode != 1) v = mix(v, trapMin, uTrapMix);
+
+    vec3 col = palette(v * uColorDensity + uColorOffset);
+    if (inside) {
+        if (uInsideMode == 0) col = uInsideColor;
+        else if (uInsideMode == 1) col = palette(trapMin * uColorDensity + uColorOffset) * uInsideColor;
+        else col = palette(stripeAcc / float(max(n, 1)) * uColorDensity + uColorOffset) * uInsideColor;
+    }
+
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(lum), col, uSat);
+    col = (col - 0.5) * uContrast + 0.5;
+    col *= uBright;
+    if (uBands > 0.5) col = floor(col * uBands + 0.5) / uBands;
+    col = mix(col, 1.0 - col, uInvert);
+    col = pow(max(col, vec3(0.0)), vec3(1.0 / max(uGamma, 0.05)));
+    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+const POST_SRC = `#version 300 es
+// fractalSwing — post pass: glow and video feedback. Reads this frame's fractal (uFrac) and the
+// previous post output (uPrev), writes the new post output. Uses fullscreen.vert.
+precision highp float;
+
+in vec2 vUv;
+out vec4 fragColor;
+
+uniform sampler2D uFrac;
+uniform sampler2D uPrev;
+uniform vec2 uRes;
+uniform int uFbMode;        // 0 off, 1 trails (max), 2 screen, 3 echo (mix)
+uniform float uFbDecay;
+uniform float uFbZoom;
+uniform float uFbRot;
+uniform vec2 uFbShift;
+uniform float uFbHue;
+uniform float uGlow;
+uniform float uGlowRadius;  // pixels
+uniform float uFlash;
+
+const float PI = 3.14159265359;
+
+vec3 hueRotate(vec3 c, float h) {
+    if (abs(h) < 1e-5) return c;
+    const vec3 k = vec3(0.57735027);
+    float a = 2.0 * PI * h;
+    float ca = cos(a);
+    float sa = sin(a);
+    return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca);
+}
+
+void main() {
+    vec3 col = texture(uFrac, vUv).rgb;
+
+    if (uGlow > 0.001) {
+        vec2 px = uGlowRadius / uRes;
+        vec3 g = vec3(0.0);
+        g += texture(uFrac, vUv + vec2(px.x, 0.0)).rgb;
+        g += texture(uFrac, vUv - vec2(px.x, 0.0)).rgb;
+        g += texture(uFrac, vUv + vec2(0.0, px.y)).rgb;
+        g += texture(uFrac, vUv - vec2(0.0, px.y)).rgb;
+        g += texture(uFrac, vUv + px * 0.7071).rgb;
+        g += texture(uFrac, vUv - px * 0.7071).rgb;
+        g += texture(uFrac, vUv + vec2(px.x, -px.y) * 0.7071).rgb;
+        g += texture(uFrac, vUv + vec2(-px.x, px.y) * 0.7071).rgb;
+        g += texture(uFrac, vUv + vec2(px.x, 0.0) * 2.0).rgb;
+        g += texture(uFrac, vUv - vec2(px.x, 0.0) * 2.0).rgb;
+        g += texture(uFrac, vUv + vec2(0.0, px.y) * 2.0).rgb;
+        g += texture(uFrac, vUv - vec2(0.0, px.y) * 2.0).rgb;
+        g /= 12.0;
+        col += g * g * uGlow;
+    }
+
+    if (uFbMode != 0) {
+        float asp = uRes.x / uRes.y;
+        vec2 d = (vUv - 0.5) * vec2(asp, 1.0);
+        float cr = cos(uFbRot);
+        float sr = sin(uFbRot);
+        d = vec2(d.x * cr - d.y * sr, d.x * sr + d.y * cr) * (1.0 - uFbZoom);
+        vec2 puv = d / vec2(asp, 1.0) + 0.5 + uFbShift;
+        vec3 prev = texture(uPrev, puv).rgb;
+        if (puv.x < 0.0 || puv.x > 1.0 || puv.y < 0.0 || puv.y > 1.0) prev = vec3(0.0);
+        prev = hueRotate(prev, uFbHue);
+        if (uFbMode == 1) col = max(col, prev * uFbDecay);
+        else if (uFbMode == 2) col = 1.0 - (1.0 - col) * (1.0 - prev * uFbDecay);
+        else col = mix(col, prev, uFbDecay);
+    }
+
+    col += vec3(uFlash);
+    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+const BLIT_SRC = `#version 300 es
+// fractalSwing — final pass to the screen: chromatic aberration, vignette, scanlines, grain, dither.
+precision highp float;
+
+in vec2 vUv;
+out vec4 fragColor;
+
+uniform sampler2D uTex;
+uniform vec2 uRes;
+uniform float uTime;
+uniform float uCa;
+uniform float uVignette;
+uniform float uGrain;
+uniform float uScan;
+
+void main() {
+    vec2 uv = vUv;
+    vec2 d = uv - 0.5;
+    float r2 = dot(d, d);
+    vec3 col;
+    if (uCa > 0.001) {
+        vec2 off = d * (r2 * 2.0 + 0.15) * uCa * 0.06;
+        col.r = texture(uTex, uv + off).r;
+        col.g = texture(uTex, uv).g;
+        col.b = texture(uTex, uv - off).b;
+    } else {
+        col = texture(uTex, uv).rgb;
+    }
+    col *= 1.0 - uVignette * smoothstep(0.15, 0.6, r2);
+    if (uScan > 0.001) col *= 1.0 - uScan * 0.35 * (0.5 + 0.5 * sin(gl_FragCoord.y * 3.14159));
+    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy + fract(uTime * 7.0) * 100.0, vec2(0.06711056, 0.00583715))));
+    col += (n - 0.5) * (uGrain * 0.18 + 1.0 / 255.0);
+    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+const APK_URL = "../1.0.0/fractalSwing-v1.0.0.apk";
+const APK_LABEL = "APK v1.0.0 · Android 8+";
+const DOCS_URL = "https://github.com/timmseth/homebrewgames/blob/main/Android/fractalSwing/README.md";
+
+// ============================================================ model
+const FAMILIES = ["Quadratic","Burning Ship","Tricorn","Multibrot","Phoenix","Celtic","Ducks","Kali","Newton","Box Fold","Sine"];
+const MODES = ["Julia","Mandelbrot"];
+const COLOR_MODES = ["Smooth iteration","Orbit trap","Stripes","Angle"];
+const TRAP_TYPES = ["Point","Cross","Ring"];
+const INSIDE_MODES = ["Solid","Trap tint","Stripe tint"];
+const FB_MODES = ["Off","Trails","Screen","Echo"];
+const QUALITY = ["Auto","Low (0.35)","Medium (0.5)","High (0.7)","Full (1.0)"];
+const KALEIDO = ["Off","2","3","4","5","6","7","8","10","12","16"];
+const KALEIDO_N = [0,2,3,4,5,6,7,8,10,12,16];
+const C_BOX = [[-1.2,.6,-.9,.9],[-1.8,.6,-1.2,.6],[-1.2,.8,-.9,.9],[-1,.8,-.9,.9],[-.8,.8,-.8,.6],[-1.4,.6,-.9,.9],[-1.5,1.5,-1.5,1.5],[-1.4,1.4,-1.4,1.4],[-.8,.8,-.8,.8],[-1.5,1.5,-1.5,1.5],[.4,1.6,-.6,.6]];
+const PALETTES = [
+  {name:"Rainbow",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[0,.33,.67]},
+  {name:"Aurora",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[.3,.2,.2]},
+  {name:"Ocean",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,.5],d:[.8,.9,.3]},
+  {name:"Fire",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,.7,.4],d:[0,.15,.2]},
+  {name:"Candy",a:[.5,.5,.5],b:[.5,.5,.5],c:[2,1,0],d:[.5,.2,.25]},
+  {name:"Neon",a:[.8,.5,.4],b:[.2,.4,.2],c:[2,1,1],d:[0,.25,.25]},
+  {name:"Ice",a:[.6,.7,.9],b:[.4,.3,.1],c:[1,1,1],d:[.5,.55,.6]},
+  {name:"Mono",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[0,0,0]},
+  {name:"Custom",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[0,.33,.67]}
+];
+const PAL_CUSTOM = 8;
+const WAVES = ["SINE","TRIANGLE","SAW","SQUARE","PENDULUM","BOUNCE","NOISE","STEPS"];
+const WAVE_LABELS = ["Sine","Triangle","Saw","Square","Pendulum","Bounce","Noise","Steps"];
+const AUDIO_LABELS = ["None","Level","Bass","Mid","Treble","Beat"];
+
+function hash(i){ const s = Math.sin(i*12.9898+78.233)*43758.5453; return s-Math.floor(s); }
+function waveAt(w, x){
+  const f = x-Math.floor(x);
+  switch(w){
+    case 0: return Math.sin(2*Math.PI*x);
+    case 1: return 1-4*Math.abs(f-.5);
+    case 2: return 2*f-1;
+    case 3: return Math.tanh(6*Math.sin(2*Math.PI*x));
+    case 4: { const s=Math.sin(2*Math.PI*x); return Math.sign(s)*Math.pow(Math.abs(s),.55); }
+    case 5: return Math.abs(Math.sin(Math.PI*x))*2-1;
+    case 6: { const i=Math.floor(x), a=hash(i), b=hash(i+1), t=f*f*(3-2*f); return (a+(b-a)*t)*2-1; }
+    default: return hash(Math.floor(x*4))*2-1;
+  }
+}
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const fmt = v => Math.abs(v)>=100 ? v.toFixed(0) : Math.abs(v)>=10 ? v.toFixed(1) : v.toFixed(2);
+
+class Swing {
+  constructor(id,label,min,max,defCenter,defAmp=0,defPeriod=20,wrap=false,unit=""){
+    Object.assign(this,{id,label,min,max,defCenter,defAmp,defPeriod,wrap,unit});
+    this.drift=0; this.value=defCenter; this.reset();
+  }
+  reset(){ this.on=true; this.center=this.defCenter; this.amp=this.defAmp; this.period=this.defPeriod; this.wave=0; this.phase=0; this.audio=0; this.audioAmt=0; this.drift=0; }
+  eval(t, sig, master){
+    let v = this.center + this.drift;
+    if (this.on && this.amp !== 0) v += this.amp*master*waveAt(this.wave, t/Math.max(this.period,.05)+this.phase);
+    if (this.audio) v += this.audioAmt*sig[this.audio];
+    if (this.wrap){ const span=this.max-this.min; let r=(v-this.min)%span; if(r<0) r+=span; v=this.min+r; } else v=clamp(v,this.min,this.max);
+    this.value=v; return v;
+  }
+  toJson(){ return {on:this.on,c:this.center,a:this.amp,p:this.period,w:WAVES[this.wave],ph:this.phase,au:this.audio,aa:this.audioAmt}; }
+  fromJson(o){
+    this.on = o.on!==undefined ? !!o.on : true;
+    this.center = +(o.c ?? this.defCenter); this.amp = +(o.a ?? this.defAmp);
+    this.period = clamp(+(o.p ?? this.defPeriod), .1, 600);
+    const wi = WAVES.indexOf(o.w); this.wave = wi>=0 ? wi : 0;
+    this.phase = +(o.ph ?? 0); this.audio = clamp(Math.round(+(o.au ?? 0)),0,5); this.audioAmt = +(o.aa ?? 0);
+  }
+}
+
+class Params {
+  constructor(){
+    Object.assign(this, {
+      family:0, julia:1, iters:120, bailout:16, spin:0, timeScale:1, masterAmp:1, drift:0, paused:false, kaleido:0, mirrorX:false, mirrorY:false,
+      colorMode:0, trapType:0, trapMix:0, stripe:3, palette:1, palC:[1,1,1], palD:[0,.33,.67], colorSpeed:.02, density:1, sat:1.1, bright:1, contrast:1.05, gamma:1, bands:0, invert:false, insideMode:0, insideColor:[.02,.02,.05],
+      glow:.5, glowRadius:3, fbMode:0, fbDecay:.85, fbHue:0, ca:.3, vignette:.35, grain:.1, scan:0, quality:0,
+      audioOn:false, reactivity:1, beatSens:1, mapZoomKick:.12, mapHue:0, mapBright:.15, mapGlow:.4, mapFlash:.08, mapCa:.5, mapIters:0
+    });
+    this.cx = new Swing("cx","c real",-2.5,2.5,-.74,.12,19);
+    this.cy = new Swing("cy","c imaginary",-2.5,2.5,.17,.18,13);
+    this.zoom = new Swing("zoom","Zoom (log₂)",-3,12,0,.4,31,false,"x");
+    this.rot = new Swing("rot","Rotation",-3.1416,3.1416,0,.25,29,true,"rad");
+    this.panX = new Swing("panX","Pan X",-3,3,0,0,37);
+    this.panY = new Swing("panY","Pan Y",-3,3,0,0,41);
+    this.power = new Swing("power","Power",1,8,2,0,23);
+    this.fold = new Swing("fold","Fold scale",.5,4,2,0,27);
+    this.extra = new Swing("extra","Extra (relax / min radius)",-2,2,1,0,23);
+    this.hue = new Swing("hue","Colour offset",0,1,0,0,20,true);
+    this.densitySw = new Swing("density","Colour density ×",.1,4,1,0,43);
+    this.trapX = new Swing("trapX","Trap X",-2,2,0,.3,17);
+    this.trapY = new Swing("trapY","Trap Y",-2,2,0,.3,11);
+    this.kaleidoRot = new Swing("kaleidoRot","Kaleidoscope angle",0,6.2832,0,0,40,true,"rad");
+    this.fbZoom = new Swing("fbZoom","Feedback zoom",-.08,.08,.006,0,15);
+    this.fbRot = new Swing("fbRot","Feedback rotation",-.1,.1,.004,0,21);
+    this.swings = [this.cx,this.cy,this.zoom,this.rot,this.panX,this.panY,this.power,this.fold,this.extra,this.hue,this.densitySw,this.trapX,this.trapY,this.kaleidoRot,this.fbZoom,this.fbRot];
+    this.buildProps();
+  }
+  swingRelevant(s){
+    switch(s.id){
+      case "power": return this.family===3;
+      case "fold": return this.family===9;
+      case "extra": return this.family===8||this.family===9;
+      case "trapX": case "trapY": return this.colorMode===1||this.trapMix>0||this.insideMode===1;
+      case "kaleidoRot": return this.kaleido>0;
+      case "fbZoom": case "fbRot": return this.fbMode!==0;
+      default: return true;
+    }
+  }
+  renderScaleFor(){ return [ -1, .35, .5, .7, 1 ][this.quality] ?? -1; }
+  resetView(){ this.panX.center = this.julia===1 ? 0 : -.5; this.panY.center=0; this.zoom.center=0; this.rot.center=0; for (const s of [this.panX,this.panY,this.zoom,this.rot]) s.drift=0; }
+  buildProps(){
+    const P=this;
+    const sl=(key,label,min,max,get,set,o={})=>({key,label,min,max,get,set,kind:"slider",log:!!o.log,help:o.help||"",fmt:o.fmt||fmt});
+    const ip=(key,label,min,max,get,set,help="")=>({key,label,min,max,get:()=>get(),set:v=>set(Math.round(v)),kind:"int",help});
+    const tg=(key,label,get,set,help="")=>({key,label,min:0,max:1,get:()=>get()?1:0,set:v=>set(v>.5),kind:"toggle",help});
+    const ch=(key,label,options,get,set,help="")=>({key,label,min:0,max:options.length-1,get,set:v=>set(clamp(Math.round(v),0,options.length-1)),kind:"choice",options,help});
+    this.fractalProps = [
+      ch("family","Fractal",FAMILIES,()=>P.family,v=>P.family=v,"Which formula is iterated."),
+      ch("julia","Form",MODES,()=>P.julia===1?0:1,v=>P.julia=v===0?1:0,"Julia: c is the swing, the pixel is z₀. Mandelbrot: the pixel is c, the swing is z₀."),
+      ip("iters","Iterations",8,600,()=>P.iters,v=>P.iters=v,"Detail vs speed."),
+      sl("bailout","Bailout",2,200,()=>P.bailout,v=>P.bailout=v,{log:true,help:"Escape radius (Sine uses |im z|)."}),
+      sl("spin","Spin (°/s)",-30,30,()=>P.spin,v=>P.spin=v),
+      sl("timeScale","Swing speed",0,4,()=>P.timeScale,v=>P.timeScale=v,{help:"Multiplies every swing's speed."}),
+      sl("masterAmp","Swing amount",0,3,()=>P.masterAmp,v=>P.masterAmp=v,{help:"Multiplies every swing's amplitude."}),
+      sl("drift","Drift",0,1,()=>P.drift,v=>P.drift=v,{help:"Slowly wanders every swing's centre at random."}),
+      ch("kaleido","Kaleidoscope",KALEIDO,()=>P.kaleido,v=>P.kaleido=v,"Mirror the plane into N wedges around the centre."),
+      tg("mirrorX","Mirror left/right",()=>P.mirrorX,v=>P.mirrorX=v),
+      tg("mirrorY","Mirror up/down",()=>P.mirrorY,v=>P.mirrorY=v),
+      tg("paused","Freeze swings",()=>P.paused,v=>P.paused=v)
+    ];
+    this.colorProps = [
+      ch("colorMode","Colour by",COLOR_MODES,()=>P.colorMode,v=>P.colorMode=v),
+      ch("palette","Palette",PALETTES.map(p=>p.name),()=>P.palette,v=>P.palette=v),
+      sl("palC0","Custom freq R",0,3,()=>P.palC[0],v=>P.palC[0]=v,{help:"Custom palette only."}),
+      sl("palC1","Custom freq G",0,3,()=>P.palC[1],v=>P.palC[1]=v),
+      sl("palC2","Custom freq B",0,3,()=>P.palC[2],v=>P.palC[2]=v),
+      sl("palD0","Custom phase R",0,1,()=>P.palD[0],v=>P.palD[0]=v),
+      sl("palD1","Custom phase G",0,1,()=>P.palD[1],v=>P.palD[1]=v),
+      sl("palD2","Custom phase B",0,1,()=>P.palD[2],v=>P.palD[2]=v),
+      sl("colorSpeed","Colour cycling (cycles/s)",-.5,.5,()=>P.colorSpeed,v=>P.colorSpeed=v),
+      sl("density","Colour density",.1,12,()=>P.density,v=>P.density=v,{log:true}),
+      sl("sat","Saturation",0,2,()=>P.sat,v=>P.sat=v),
+      sl("bright","Brightness",.2,2.5,()=>P.bright,v=>P.bright=v),
+      sl("contrast","Contrast",.3,2.5,()=>P.contrast,v=>P.contrast=v),
+      sl("gamma","Gamma",.4,2.5,()=>P.gamma,v=>P.gamma=v),
+      sl("bands","Posterize bands (0 = off)",0,16,()=>P.bands,v=>P.bands=v,{fmt:v=>v.toFixed(0)}),
+      tg("invert","Invert",()=>P.invert,v=>P.invert=v),
+      ch("trapType","Orbit trap shape",TRAP_TYPES,()=>P.trapType,v=>P.trapType=v),
+      sl("trapMix","Trap mix",0,1,()=>P.trapMix,v=>P.trapMix=v,{help:"Blend the orbit trap into other colour modes."}),
+      sl("stripe","Stripe frequency",.5,12,()=>P.stripe,v=>P.stripe=v),
+      ch("insideMode","Inside",INSIDE_MODES,()=>P.insideMode,v=>P.insideMode=v,"How non-escaping points are coloured."),
+      sl("insideR","Inside R",0,1,()=>P.insideColor[0],v=>P.insideColor[0]=v),
+      sl("insideG","Inside G",0,1,()=>P.insideColor[1],v=>P.insideColor[1]=v),
+      sl("insideB","Inside B",0,1,()=>P.insideColor[2],v=>P.insideColor[2]=v)
+    ];
+    this.fxProps = [
+      sl("glow","Glow",0,3,()=>P.glow,v=>P.glow=v),
+      sl("glowRadius","Glow radius (px)",1,12,()=>P.glowRadius,v=>P.glowRadius=v),
+      ch("fbMode","Feedback",FB_MODES,()=>P.fbMode,v=>P.fbMode=v,"Blends the previous frame back in, zoomed and rotated by the feedback swings."),
+      sl("fbDecay","Feedback decay",0,.995,()=>P.fbDecay,v=>P.fbDecay=v),
+      sl("fbHue","Feedback hue shift",-.05,.05,()=>P.fbHue,v=>P.fbHue=v,{help:"Hue rotation per frame of the fed-back image."}),
+      sl("ca","Chromatic aberration",0,3,()=>P.ca,v=>P.ca=v),
+      sl("vignette","Vignette",0,1,()=>P.vignette,v=>P.vignette=v),
+      sl("grain","Grain",0,1,()=>P.grain,v=>P.grain=v),
+      sl("scan","Scanlines",0,1,()=>P.scan,v=>P.scan=v),
+      ch("quality","Render quality",QUALITY,()=>P.quality,v=>P.quality=v,"Auto keeps ~45 fps by changing the render resolution.")
+    ];
+    this.audioProps = [
+      sl("reactivity","Reactivity",0,3,()=>P.reactivity,v=>P.reactivity=v,{help:"Scales every audio signal."}),
+      sl("beatSens","Beat sensitivity",.3,3,()=>P.beatSens,v=>P.beatSens=v),
+      sl("mapZoomKick","Beat → zoom kick",0,1,()=>P.mapZoomKick,v=>P.mapZoomKick=v),
+      sl("mapFlash","Beat → flash",0,.5,()=>P.mapFlash,v=>P.mapFlash=v),
+      sl("mapCa","Beat → aberration",0,3,()=>P.mapCa,v=>P.mapCa=v),
+      sl("mapHue","Bass → colour shift",0,1,()=>P.mapHue,v=>P.mapHue=v),
+      sl("mapBright","Level → brightness",0,1,()=>P.mapBright,v=>P.mapBright=v),
+      sl("mapGlow","Treble → glow",0,2,()=>P.mapGlow,v=>P.mapGlow=v),
+      sl("mapIters","Mid → detail",0,1,()=>P.mapIters,v=>P.mapIters=v,{help:"Adds iterations with the mids."})
+    ];
+    this.audioOnProp = tg("audioOn","Audio on",()=>P.audioOn,v=>P.audioOn=v);
+    this._sl=sl; this._tg=tg; this._ch=ch;
+  }
+  swingProps(s){
+    const sl=this._sl, tg=this._tg, ch=this._ch;
+    return [
+      tg(s.id+".on","Enabled",()=>s.on,v=>s.on=v),
+      sl(s.id+".c","Centre",s.min,s.max,()=>s.center,v=>s.center=v),
+      sl(s.id+".a","Amplitude",0,(s.max-s.min)/2,()=>s.amp,v=>s.amp=v),
+      sl(s.id+".p","Period (s)",.25,240,()=>s.period,v=>s.period=v,{log:true}),
+      ch(s.id+".w","Shape",WAVE_LABELS,()=>s.wave,v=>s.wave=v),
+      sl(s.id+".ph","Phase",0,1,()=>s.phase,v=>s.phase=v),
+      ch(s.id+".au","Audio link",AUDIO_LABELS,()=>s.audio,v=>s.audio=v),
+      sl(s.id+".aa","Audio amount",-(s.max-s.min)/2,(s.max-s.min)/2,()=>s.audioAmt,v=>s.audioAmt=v)
+    ];
+  }
+  get allProps(){ return [...this.fractalProps,...this.colorProps,...this.fxProps,...this.audioProps,this.audioOnProp]; }
+  toJson(){
+    const o={}; for (const p of this.allProps) o[p.key]=p.get();
+    o.swings={}; for (const s of this.swings) o.swings[s.id]=s.toJson();
+    o.v=1; return o;
+  }
+  fromJson(o){
+    for (const p of this.allProps) if (o[p.key]!==undefined) p.set(clamp(+o[p.key],p.min,p.max));
+    for (const s of this.swings){ s.reset(); const so=o.swings&&o.swings[s.id]; if (so) s.fromJson(so); }
+    this.paused=false;
+  }
+  copyFrom(p){ this.fromJson(p.toJson()); }
+  resetAll(){ this.fromJson(new Params().toJson()); }
+  randomize(keepFamily=false){
+    const rf=(a,b)=>a+Math.random()*(b-a), chance=p=>Math.random()<p, ri=n=>Math.floor(Math.random()*n);
+    if(!keepFamily){ this.family=ri(FAMILIES.length); this.julia=([6,7,10].includes(this.family)||chance(.75))?1:0; }
+    for (const s of this.swings) s.reset();
+    const box=C_BOX[this.family];
+    this.cx.center=rf(box[0],box[1]); this.cy.center=rf(box[2],box[3]);
+    const span=.5*(box[1]-box[0]);
+    this.cx.amp=rf(.02,.3)*span; this.cy.amp=rf(.02,.3)*span; this.cx.period=rf(7,40); this.cy.period=rf(7,40);
+    this.cx.wave=ri(6); this.cy.wave=ri(6);
+    if(this.family===8){ this.cx.center*=.4; this.cy.center*=.4; this.cx.amp*=.5; this.cy.amp*=.5; }
+    this.zoom.center=rf(-.5,1.5); this.zoom.amp=rf(0,.8); this.zoom.period=rf(15,60);
+    this.rot.center=rf(-3.1,3.1); this.rot.amp=rf(0,.6); this.rot.period=rf(15,60);
+    if(this.julia===0){ this.panX.center=this.family===0?-.5:rf(-.6,.2); this.panY.center=rf(-.3,.3); } else { this.panX.center=rf(-.4,.4); this.panY.center=rf(-.4,.4); }
+    if(chance(.5)){ this.panX.amp=rf(0,.3); this.panY.amp=rf(0,.3); }
+    this.power.center=rf(2,6); this.power.amp=chance(.6)?rf(.1,1.2):0; this.power.period=rf(10,40);
+    this.fold.center=rf(1.5,3); this.fold.amp=chance(.5)?rf(.05,.5):0;
+    this.extra.center=this.family===8?rf(.6,1.3):rf(.3,.8); this.extra.amp=chance(.4)?rf(.05,.3):0;
+    this.hue.amp=chance(.5)?rf(.05,.3):0; this.hue.period=rf(10,60);
+    this.trapX.amp=rf(0,.6); this.trapY.amp=rf(0,.6); this.trapX.period=rf(7,30); this.trapY.period=rf(7,30);
+    this.iters = [6,7].includes(this.family)?24+ri(40) : this.family===8?30+ri(40) : this.family===9?20+ri(40) : 60+ri(180);
+    this.bailout = this.family===10?50 : this.family===9?64 : 16;
+    this.colorMode = [6,7].includes(this.family)?0 : this.family===8?(chance(.5)?3:0) : [0,0,0,1,2][ri(5)];
+    this.trapType=ri(3); this.trapMix=chance(.3)?rf(.1,.6):0; this.stripe=rf(1,8);
+    this.palette=ri(PALETTES.length);
+    if(this.palette===PAL_CUSTOM) for(let i=0;i<3;i++){ this.palC[i]=rf(.5,2); this.palD[i]=rf(0,1); }
+    this.density = [6,7].includes(this.family)?rf(.3,2):rf(.4,4);
+    this.colorSpeed=rf(-.06,.06); this.sat=rf(.9,1.4); this.bright=rf(.9,1.2); this.contrast=rf(.95,1.3); this.gamma=rf(.8,1.2);
+    this.bands=chance(.12)?rf(3,10):0; this.invert=chance(.1); this.insideMode=ri(3);
+    if(chance(.5)){ this.insideColor=[rf(0,.08),rf(0,.08),rf(0,.12)]; } else { this.insideColor=[rf(.1,1),rf(.1,1),rf(.1,1)]; }
+    this.kaleido=chance(.25)?1+ri(KALEIDO.length-1):0; this.mirrorX=chance(.15); this.mirrorY=chance(.1);
+    this.kaleidoRot.amp=(this.kaleido>0&&chance(.6))?rf(.1,1):0;
+    this.glow=rf(0,1.5); this.glowRadius=rf(2,6);
+    this.fbMode=chance(.45)?1+ri(3):0; this.fbDecay=rf(.6,.95); this.fbHue=chance(.4)?rf(-.02,.02):0;
+    this.fbZoom.center=rf(-.02,.03); this.fbRot.center=rf(-.02,.02);
+    this.ca=rf(0,1.2); this.vignette=rf(.1,.6); this.grain=rf(0,.3); this.scan=chance(.15)?rf(.2,.7):0;
+    this.spin=chance(.3)?rf(-6,6):0; this.paused=false;
+  }
+  mutate(strength=.12){
+    const rf=(a,b)=>a+Math.random()*(b-a), chance=p=>Math.random()<p;
+    for (const p of [...this.fractalProps,...this.colorProps,...this.fxProps]){
+      if(p.kind!=="slider") continue; if(["timeScale","masterAmp","drift"].includes(p.key)) continue;
+      p.set(clamp(p.get()+(Math.random()-.5)*2*strength*(p.max-p.min)*.3,p.min,p.max));
+    }
+    for (const s of this.swings){
+      const span=s.max-s.min;
+      let c=s.center+(Math.random()-.5)*strength*span*.25; s.center=s.wrap?c:clamp(c,s.min,s.max);
+      s.amp=clamp(s.amp*rf(1-strength*2,1+strength*2),0,span/2);
+      s.period=clamp(s.period*rf(1-strength,1+strength),.25,240);
+    }
+    if(chance(strength)) this.palette=Math.floor(Math.random()*PALETTES.length);
+    if(chance(strength*.5)) this.colorMode=Math.floor(Math.random()*COLOR_MODES.length);
+    if(Math.abs(this.zoom.center)>10) this.zoom.center=0;
+  }
+}
+
+// ============================================================ presets (same as the Android app)
+function sw(s,center,amp,period,wave=0,phase=0){ s.center=center; s.amp=amp; s.period=period; s.wave=wave; s.phase=phase; s.on=true; }
+const PRESETS = [
+  {name:"Julia Pendulum",blurb:"The classic quadratic Julia set, its constant swinging on a slow Lissajous path.",apply:p=>{ p.family=0;p.julia=1;p.iters=160;p.bailout=16; sw(p.cx,-.745,.11,19,4); sw(p.cy,.16,.17,13,0,.25); sw(p.zoom,.2,.35,37); sw(p.rot,0,.2,29); p.palette=1;p.density=1.2;p.colorSpeed=.015;p.colorMode=0; p.glow=.6;p.fbMode=1;p.fbDecay=.8;p.fbZoom.center=.008;p.fbRot.center=.003; p.ca=.4;p.vignette=.35;p.grain=.08; p.mapZoomKick=.12;p.mapCa=.6;p.mapFlash=.06; }},
+  {name:"Ducks Pond",blurb:"Samuel Monnier's Ducks: a non-escaping log map that looks like rippling feathers.",apply:p=>{ p.family=6;p.julia=1;p.iters=40; sw(p.cx,-.6,.35,23); sw(p.cy,.9,.3,17,4,.3); sw(p.zoom,.8,.3,41); sw(p.rot,0,0,30); p.spin=1.5; p.palette=2;p.density=.8;p.colorSpeed=.02;p.sat=1.2;p.contrast=1.15; p.glow=.4;p.fbMode=0;p.ca=.2;p.vignette=.4; }},
+  {name:"Kali Cathedral",blurb:"Kaleidoscopic IFS: inversion and folding make glowing gothic lace.",apply:p=>{ p.family=7;p.julia=1;p.iters=28; sw(p.cx,-.9,.25,29,6); sw(p.cy,-.55,.25,23,6); sw(p.zoom,.5,.5,47); p.spin=-2; p.palette=6;p.density=.6;p.sat=1;p.bright=1.1;p.gamma=.9; p.kaleido=4; sw(p.kaleidoRot,0,.6,53); p.glow=1;p.glowRadius=4;p.fbMode=2;p.fbDecay=.7;p.fbZoom.center=-.01; p.ca=.6;p.vignette=.5; }},
+  {name:"Burning Drift",blurb:"Burning Ship Julia with a drifting constant and fiery palette.",apply:p=>{ p.family=1;p.julia=1;p.iters=140; sw(p.cx,-.62,.2,31,6); sw(p.cy,-.55,.2,27,6); sw(p.zoom,.4,.4,43); sw(p.rot,3.1416,.15,37); sw(p.panY,-.1,.1,51); p.palette=3;p.density=1.6;p.colorSpeed=-.02;p.contrast=1.2; p.colorMode=0;p.trapMix=.25;p.trapType=1; sw(p.trapX,0,.4,19); sw(p.trapY,0,.4,23); p.glow=.9;p.fbMode=1;p.fbDecay=.85;p.fbZoom.center=.012;p.fbHue=.004; p.ca=.5;p.grain=.2; }},
+  {name:"Power Bloom",blurb:"Multibrot Julia whose exponent breathes between 2 and 5.",apply:p=>{ p.family=3;p.julia=1;p.iters=100; sw(p.power,3.5,1.5,26,4); sw(p.cx,.35,.2,17); sw(p.cy,.4,.2,11,0,.25); sw(p.zoom,.1,.3,39); sw(p.rot,0,.3,33); p.palette=4;p.density=1.4;p.colorSpeed=.03;p.colorMode=2;p.stripe=4; p.kaleido=0;p.glow=.7;p.fbMode=3;p.fbDecay=.55;p.ca=.3; }},
+  {name:"Newton Petals",blurb:"Newton's method basins, perturbed and relaxed into petals.",apply:p=>{ p.family=8;p.julia=1;p.iters=48; sw(p.cx,.1,.35,29); sw(p.cy,0,.35,23,0,.25); sw(p.extra,1,.35,19,4); sw(p.zoom,-.3,.3,45); p.spin=3; p.palette=0;p.density=1;p.colorMode=3;p.trapMix=.2;p.trapType=0; p.sat=1.2;p.contrast=1.1;p.glow=.5;p.fbMode=0;p.ca=.25;p.vignette=.3; }},
+  {name:"Phoenix Breath",blurb:"The Phoenix fractal; its feedback term swings so the plumes open and close.",apply:p=>{ p.family=4;p.julia=1;p.iters=120; sw(p.cx,.5667,.08,23); sw(p.cy,-.5,.12,15,4); sw(p.zoom,.3,.3,37); sw(p.rot,1.5708,.1,41); p.palette=6;p.density=1.8;p.colorSpeed=.02;p.colorMode=0; p.insideMode=1;p.insideColor=[.6,.3,.9]; p.glow=.8;p.fbMode=2;p.fbDecay=.65;p.ca=.4;p.grain=.12; }},
+  {name:"Box Fold Tunnel",blurb:"A 2D Mandelbox with feedback zoom: an endless folding tunnel.",apply:p=>{ p.family=9;p.julia=0;p.iters=36;p.bailout=64; sw(p.fold,2.1,.35,31,4); sw(p.extra,.5,.15,21); sw(p.cx,0,.3,27,6); sw(p.cy,0,.3,19,6); sw(p.zoom,-1.2,.4,49); p.spin=2; p.palette=2;p.density=.9;p.colorSpeed=.025;p.colorMode=0;p.gamma=.9; p.kaleido=6; sw(p.kaleidoRot,0,.5,60); p.glow=1.2;p.glowRadius=5;p.fbMode=1;p.fbDecay=.9;p.fbZoom.center=.02;p.fbRot.center=.006;p.fbHue=.003; p.ca=.8;p.vignette=.55; }},
+  {name:"Mandel Dive",blurb:"The Mandelbrot set itself, slowly zooming into the seahorse valley while z₀ wobbles.",apply:p=>{ p.family=0;p.julia=0;p.iters=260; sw(p.panX,-.7453,0,30); sw(p.panY,.1127,0,30); sw(p.zoom,5,4,120,1,.25); sw(p.cx,0,.06,17); sw(p.cy,0,.06,13,0,.25); sw(p.rot,0,0,30); p.spin=.8; p.palette=1;p.density=2.5;p.colorSpeed=.04;p.colorMode=0;p.contrast=1.15; p.glow=.4;p.fbMode=0;p.ca=.3;p.vignette=.3; }},
+  {name:"Sine Silk",blurb:"The sine map Julia set: silk ribbons that stretch and fold.",apply:p=>{ p.family=10;p.julia=1;p.iters=60;p.bailout=50; sw(p.cx,1,.25,23,4); sw(p.cy,.1,.3,17,0,.25); sw(p.zoom,-.8,.4,41); sw(p.rot,0,.25,35); p.palette=6;p.density=1.2;p.colorSpeed=-.015;p.colorMode=2;p.stripe=2.5; p.insideMode=2;p.insideColor=[.5,.6,1]; p.glow=.6;p.fbMode=3;p.fbDecay=.5;p.ca=.35; }},
+  {name:"Feedback Storm",blurb:"Tricorn with heavy feedback, hue rotation and an 8-fold kaleidoscope: maximum trip.",apply:p=>{ p.family=2;p.julia=1;p.iters=110; sw(p.cx,-.3,.4,13); sw(p.cy,.6,.4,9,0,.25); sw(p.zoom,0,.6,23,4); sw(p.rot,0,.8,19); p.spin=6; p.palette=0;p.density=2.2;p.colorSpeed=.08;p.colorMode=0;p.sat=1.4; p.kaleido=7; sw(p.kaleidoRot,0,1.5,31); p.glow=1.5;p.glowRadius=6;p.fbMode=2;p.fbDecay=.88;p.fbHue=.012; sw(p.fbZoom,.015,.02,11); sw(p.fbRot,.01,.03,17); p.ca=1.5;p.grain=.25;p.vignette=.5; p.mapZoomKick=.3;p.mapFlash=.12;p.mapCa=1.5;p.mapHue=.3; }},
+  {name:"Celtic Lace",blurb:"Celtic variant with an orbit-trap ring colouring: knotwork in ice.",apply:p=>{ p.family=5;p.julia=1;p.iters=130; sw(p.cx,-.8,.15,29); sw(p.cy,.2,.2,23,4,.5); sw(p.zoom,.3,.3,43); sw(p.rot,0,.3,37); p.palette=6;p.density=1.1;p.colorMode=1;p.trapType=2; sw(p.trapX,.3,.5,19); sw(p.trapY,0,.5,13,0,.25); p.sat=.9;p.bright=1.1;p.gamma=.85; p.mirrorX=true;p.glow=.7;p.fbMode=1;p.fbDecay=.75;p.ca=.3;p.vignette=.4; }}
+];
+function applyPreset(i, p){ const fresh=new Params(); PRESETS[i].apply(fresh); fresh.audioOn=p.audioOn; fresh.quality=p.quality; p.copyFrom(fresh); }
+
+// ============================================================ audio (Web Audio: microphone, or tab/system audio where the browser allows it)
+class AudioIn {
+  constructor(){ this.level=this.bass=this.mid=this.treble=0; this.beatAt=-100; this.beatCount=0; this.lastSound=-100; this.beatSens=1; this.ctx=null; this.analyser=null; this.stream=null; this.err=null; this.kind=""; this.buf=null; this.prev=null; this.peak=[.3,.3,.3,.3]; this.ema=[0,0,0,0]; this.fMean=0; this.fVar=0; this.lastBeat=0; this.v1=0; this.v2=0; this.t1=0; }
+  get running(){ return !!this.analyser; }
+  async start(kind){
+    this.stop(); this.err=null; this.kind=kind;
+    try {
+      let stream;
+      if (kind==="tab"){
+        if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia) throw new Error("This browser can't capture tab audio; use the microphone.");
+        stream = await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+        for (const t of stream.getVideoTracks()) t.stop();
+        if (!stream.getAudioTracks().length) throw new Error("No audio in that capture — pick a tab and tick \"Share tab audio\".");
+      } else {
+        if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error("This browser can't open the microphone (needs https).");
+        stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+      }
+      this.stream=stream;
+      const AC = window.AudioContext||window.webkitAudioContext;
+      this.ctx = new AC();
+      if (this.ctx.state==="suspended") await this.ctx.resume();
+      const src=this.ctx.createMediaStreamSource(stream);
+      const an=this.ctx.createAnalyser(); an.fftSize=2048; an.smoothingTimeConstant=0; an.minDecibels=-90; an.maxDecibels=-20;
+      src.connect(an); this.analyser=an; this.buf=new Uint8Array(an.frequencyBinCount); this.prev=new Float32Array(an.frequencyBinCount);
+      for (const t of stream.getAudioTracks()) t.onended=()=>{ this.stop(); this.err="Audio capture ended."; };
+    } catch(e){ this.err=(e&&e.message)||String(e); this.stop(false); }
+  }
+  stop(clearErr=true){
+    if(this.stream) for(const t of this.stream.getTracks()) t.stop();
+    if(this.ctx) try{ this.ctx.close(); }catch(_){}
+    this.stream=null; this.ctx=null; this.analyser=null; if(clearErr) this.err=null;
+    this.level=this.bass=this.mid=this.treble=0;
+  }
+  update(now){
+    const an=this.analyser; if(!an) return;
+    an.getByteFrequencyData(this.buf);
+    const n=this.buf.length, binHz=this.ctx.sampleRate/an.fftSize;
+    const kBl=Math.max(1,Math.floor(40/binHz)), kBh=Math.max(kBl+1,Math.floor(160/binHz)), kMh=Math.max(kBh+1,Math.floor(2000/binHz)), kTh=Math.min(n,Math.max(kMh+1,Math.floor(9000/binHz)));
+    let flux=0,sb=0,sm=0,st=0;
+    for(let k=1;k<kTh;k++){
+      const lm=this.buf[k]/255; const d=lm-this.prev[k]; this.prev[k]=lm;
+      if(d>0) flux+=(k<kBh?2:1)*d*8;
+      if(k<kBh){ if(k>=kBl) sb+=lm; } else if(k<kMh) sm+=lm; else st+=lm;
+    }
+    sb/=Math.max(1,kBh-kBl); sm/=Math.max(1,kMh-kBh); st/=Math.max(1,kTh-kMh);
+    const lv=sb*.45+sm*.4+st*.15;
+    const vals=[lv,sb,sm,st], decay=[.9995,.9995,.9995,.9995], a=[.2,.4,.3,.3];
+    for(let i=0;i<4;i++){ this.peak[i]=Math.max(vals[i],this.peak[i]*decay[i]); const r=clamp(vals[i]/Math.max(this.peak[i],.05),0,1); this.ema[i]=this.ema[i]*(1-a[i])+a[i]*r*r; }
+    this.level=this.ema[0]; this.bass=this.ema[1]; this.mid=this.ema[2]; this.treble=this.ema[3];
+    if(lv>.08) this.lastSound=now;
+    const al=.03, dd=flux-this.fMean; this.fMean+=al*dd; this.fVar=(1-al)*(this.fVar+al*dd*dd);
+    const thr=this.fMean+(1.6/Math.max(this.beatSens,.2))*Math.sqrt(this.fVar)+.3;
+    if(this.v1>this.v2&&this.v1>=flux&&this.v1>thr&&this.t1-this.lastBeat>.22&&lv>.06){ this.lastBeat=this.t1; this.beatAt=this.t1; this.beatCount++; }
+    this.v2=this.v1; this.v1=flux; this.t1=now;
+  }
+  beat(now){ const b=Math.exp(-(now-this.beatAt)*7); return b<.004?0:b; }
+  signals(now,gain,out){ out[0]=0; out[1]=clamp(this.level*gain,0,2); out[2]=clamp(this.bass*gain,0,2); out[3]=clamp(this.mid*gain,0,2); out[4]=clamp(this.treble*gain,0,2); out[5]=clamp(this.beat(now)*gain,0,2); }
+}
+
+// ============================================================ renderer (WebGL2)
+class Renderer {
+  constructor(canvas, params, audio){
+    this.canvas=canvas; this.p=params; this.audio=audio;
+    const gl=canvas.getContext("webgl2",{antialias:false,alpha:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:"high-performance"});
+    this.gl=gl; if(!gl) return;
+    this.progs={}; this.err=null; this.animT=0; this.last=0; this.frameEma=16; this.fps=0; this.slowSince=-1; this.fastSince=-1; this.lastScaleChange=0;
+    this.scale=.6; this.cur=0; this.sig=new Float32Array(6); this.w=1; this.h=1; this.shotCb=null;
+    try{
+      this.vs=this.compile(gl.VERTEX_SHADER,VERT_SRC,"vert");
+      this.post=this.link(POST_SRC,"","post"); this.blit=this.link(BLIT_SRC,"","blit");
+    }catch(e){ this.err=e.message; }
+    this.vao=gl.createVertexArray(); gl.bindVertexArray(this.vao);
+    const vb=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,0,0,0,0]),gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0); gl.bindVertexArray(null);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+    this.frac=null; this.ping=[null,null];
+  }
+  compile(type,src,name){ const gl=this.gl, s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ const log=gl.getShaderInfoLog(s); gl.deleteShader(s); throw new Error(name+": "+log); } return s; }
+  link(fragSrc,defines,name){
+    const gl=this.gl; let src=fragSrc; if(defines){ const nl=src.indexOf("\n"); src=src.slice(0,nl+1)+defines+"\n"+src.slice(nl+1); }
+    const fs=this.compile(gl.FRAGMENT_SHADER,src,name); const pr=gl.createProgram(); gl.attachShader(pr,this.vs); gl.attachShader(pr,fs); gl.bindAttribLocation(pr,0,"aDummy"); gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error("link "+name+": "+gl.getProgramInfoLog(pr));
+    gl.deleteShader(fs); return {id:pr,loc:{}};
+  }
+  u(pr,name){ if(pr.loc[name]===undefined) pr.loc[name]=this.gl.getUniformLocation(pr.id,name); return pr.loc[name]; }
+  f(pr,n,v){ const l=this.u(pr,n); if(l) this.gl.uniform1f(l,v); }
+  i(pr,n,v){ const l=this.u(pr,n); if(l) this.gl.uniform1i(l,v); }
+  v2(pr,n,x,y){ const l=this.u(pr,n); if(l) this.gl.uniform2f(l,x,y); }
+  v3(pr,n,a){ const l=this.u(pr,n); if(l) this.gl.uniform3f(l,a[0],a[1],a[2]); }
+  program(family){ if(this.progs[family]) return this.progs[family]; try{ const pr=this.link(FRACTAL_SRC,"#define FRACTAL "+family,"fractal "+family); this.progs[family]=pr; this.err=null; return pr; }catch(e){ this.err=e.message; return null; } }
+  target(w,h){
+    const gl=this.gl, tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    const fbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    return {tex,fbo,w,h};
+  }
+  release(t){ if(!t) return; this.gl.deleteFramebuffer(t.fbo); this.gl.deleteTexture(t.tex); }
+  resize(){
+    const dpr=Math.min(window.devicePixelRatio||1,3);
+    const w=Math.max(64,Math.round(this.canvas.clientWidth*dpr*this.scale)), h=Math.max(64,Math.round(this.canvas.clientHeight*dpr*this.scale));
+    if(w===this.w&&h===this.h&&this.frac) return;
+    this.w=w; this.h=h; this.canvas.width=w; this.canvas.height=h;
+    this.release(this.frac); this.release(this.ping[0]); this.release(this.ping[1]);
+    this.frac=this.target(w,h); this.ping=[this.target(w,h),this.target(w,h)];
+  }
+  clearHistory(){ const gl=this.gl; for(const t of this.ping){ if(!t) continue; gl.bindFramebuffer(gl.FRAMEBUFFER,t.fbo); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); } gl.bindFramebuffer(gl.FRAMEBUFFER,null); }
+  setScale(s){ this.scale=clamp(s,.3,1); this.resize(); }
+  frame(nowMs){
+    const gl=this.gl, p=this.p, now=nowMs/1000;
+    const dt=this.last?clamp(now-this.last,0,.1):.016; this.last=now;
+    if(!p.paused) this.animT+=dt*p.timeScale;
+    if(p.drift>0){ p.swings.forEach((s,i)=>{ s.drift=p.drift*(s.max-s.min)*.12*waveAt(6,this.animT/(35+i*2.7)+i*7.31); }); } else for(const s of p.swings) s.drift=0;
+    this.audio.beatSens=p.beatSens; this.audio.update(now);
+    this.audio.signals(now,p.audioOn?p.reactivity:0,this.sig);
+    const sig=this.sig, beat=sig[5], bass=sig[2], mid=sig[3], treble=sig[4], level=sig[1];
+    for(const s of p.swings) s.eval(this.animT,sig,p.masterAmp);
+    this.resize();
+    const fp=this.program(p.family); if(!fp||!this.frac) return;
+    const w=this.w,h=this.h;
+    gl.bindVertexArray(this.vao);
+    // pass 1
+    gl.bindFramebuffer(gl.FRAMEBUFFER,this.frac.fbo); gl.viewport(0,0,w,h); gl.useProgram(fp.id);
+    this.v2(fp,"uRes",w,h); this.f(fp,"uTime",this.animT); this.v2(fp,"uCenter",p.panX.value,p.panY.value);
+    this.f(fp,"uScale",1.5*Math.pow(2,-p.zoom.value)*(1-.35*p.mapZoomKick*beat));
+    this.f(fp,"uRot",p.rot.value+p.spin*this.animT*Math.PI/180);
+    this.v2(fp,"uC",p.cx.value,p.cy.value); this.f(fp,"uPower",p.power.value); this.f(fp,"uFold",p.fold.value); this.f(fp,"uExtra",p.extra.value);
+    this.i(fp,"uIters",clamp(Math.round(p.iters*(1+.6*p.mapIters*mid)),4,1200)); this.f(fp,"uBailout",p.bailout); this.i(fp,"uJulia",p.julia);
+    this.i(fp,"uKaleido",KALEIDO_N[clamp(p.kaleido,0,KALEIDO_N.length-1)]); this.f(fp,"uKaleidoRot",p.kaleidoRot.value);
+    this.i(fp,"uMirror",(p.mirrorX?1:0)|(p.mirrorY?2:0));
+    this.i(fp,"uColorMode",p.colorMode); this.i(fp,"uTrapType",p.trapType); this.v2(fp,"uTrap",p.trapX.value,p.trapY.value); this.f(fp,"uTrapMix",p.trapMix); this.f(fp,"uStripe",p.stripe);
+    const pal=PALETTES[clamp(p.palette,0,PALETTES.length-1)];
+    this.v3(fp,"uPalA",pal.a); this.v3(fp,"uPalB",pal.b);
+    if(p.palette===PAL_CUSTOM){ this.v3(fp,"uPalC",p.palC); this.v3(fp,"uPalD",p.palD); } else { this.v3(fp,"uPalC",pal.c); this.v3(fp,"uPalD",pal.d); }
+    this.f(fp,"uColorOffset",p.hue.value+p.colorSpeed*this.animT+p.mapHue*bass*.5); this.f(fp,"uColorDensity",p.density*p.densitySw.value);
+    this.f(fp,"uSat",p.sat); this.f(fp,"uBright",p.bright*(1+p.mapBright*level)); this.f(fp,"uContrast",p.contrast); this.f(fp,"uGamma",p.gamma);
+    this.f(fp,"uBands",p.bands); this.f(fp,"uInvert",p.invert?1:0); this.i(fp,"uInsideMode",p.insideMode); this.v3(fp,"uInsideColor",p.insideColor);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    // pass 2
+    const dst=this.ping[this.cur], prev=this.ping[1-this.cur], pr=this.post;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,dst.fbo); gl.useProgram(pr.id);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,this.frac.tex); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,prev.tex);
+    this.i(pr,"uFrac",0); this.i(pr,"uPrev",1); this.v2(pr,"uRes",w,h); this.i(pr,"uFbMode",p.fbMode); this.f(pr,"uFbDecay",p.fbDecay);
+    this.f(pr,"uFbZoom",p.fbZoom.value); this.f(pr,"uFbRot",p.fbRot.value); this.v2(pr,"uFbShift",0,0); this.f(pr,"uFbHue",p.fbHue);
+    this.f(pr,"uGlow",p.glow+p.mapGlow*treble); this.f(pr,"uGlowRadius",p.glowRadius*Math.max(this.scale,.3)*(window.devicePixelRatio||1)); this.f(pr,"uFlash",p.mapFlash*beat);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    // pass 3
+    const bl=this.blit;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,w,h); gl.useProgram(bl.id);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,dst.tex);
+    this.i(bl,"uTex",0); this.v2(bl,"uRes",w,h); this.f(bl,"uTime",this.animT); this.f(bl,"uCa",p.ca+p.mapCa*beat); this.f(bl,"uVignette",p.vignette); this.f(bl,"uGrain",p.grain); this.f(bl,"uScan",p.scan);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.bindVertexArray(null);
+    this.cur=1-this.cur;
+    if(this.shotCb){ const cb=this.shotCb; this.shotCb=null; try{ this.canvas.toBlob(b=>cb(b),"image/png"); }catch(e){ cb(null); } }
+    // pacing
+    const ms=dt*1000; this.frameEma=this.frameEma*.9+ms*.1; this.fps=1000/Math.max(this.frameEma,1);
+    const fixed=p.renderScaleFor();
+    if(fixed>0){ if(Math.abs(fixed-this.scale)>.01&&now-this.lastScaleChange>.5){ this.lastScaleChange=now; this.setScale(fixed); } }
+    else if(now-this.lastScaleChange>1.5){
+      if(this.frameEma>24){ if(this.slowSince<0) this.slowSince=now; if(now-this.slowSince>1.2&&this.scale>.3){ this.lastScaleChange=now; this.slowSince=-1; this.fastSince=-1; this.setScale(Math.max(.3,this.scale-.1)); } } else this.slowSince=-1;
+      if(this.frameEma<12){ if(this.fastSince<0) this.fastSince=now; if(now-this.fastSince>4&&this.scale<.9){ this.lastScaleChange=now; this.fastSince=-1; this.slowSince=-1; this.setScale(Math.min(1,this.scale+.1)); } } else this.fastSince=-1;
+    }
+  }
+}
+
+// ============================================================ panel
+const TABS=["FRACTAL","SWINGS","COLOUR","FX","AUDIO","PRESETS"];
+class Panel {
+  constructor(params, host){
+    this.p=params; this.host=host; this.tab=0; this.refreshers=[]; this.readouts=[]; this.expanded=new Set(["cx"]); this.suppress=false;
+    this.el=document.getElementById("panel"); this.tabsEl=document.getElementById("tabs"); this.contentEl=document.getElementById("content"); this.statusEl=document.getElementById("status");
+    TABS.forEach((t,i)=>{ const b=document.createElement("button"); b.className="tab"; b.textContent=t; b.onclick=()=>{ this.tab=i; this.rebuild(); }; this.tabsEl.appendChild(b); });
+    this.rebuild();
+  }
+  get visible(){ return !this.el.classList.contains("hidden"); }
+  show(v){ this.el.classList.toggle("hidden",!v); if(v){ this.refresh(); this.tick(); } localStorage.setItem("fs.panel",v?"1":"0"); }
+  refresh(){ this.suppress=true; for(const r of this.refreshers) r(); this.suppress=false; }
+  tick(){ this.statusEl.textContent=this.host.statusLine(); for(const r of this.readouts) r(); }
+  rebuild(){
+    this.refreshers=[]; this.readouts=[];
+    [...this.tabsEl.children].forEach((b,i)=>b.classList.toggle("on",i===this.tab));
+    const c=this.contentEl; c.innerHTML="";
+    const p=this.p;
+    switch(this.tab){
+      case 0: for(const pr of p.fractalProps) c.appendChild(this.propView(pr)); break;
+      case 1: this.buildSwings(c); break;
+      case 2: for(const pr of p.colorProps) c.appendChild(this.propView(pr)); break;
+      case 3: for(const pr of p.fxProps) c.appendChild(this.propView(pr)); break;
+      case 4: this.buildAudio(c); break;
+      default: this.buildPresets(c);
+    }
+    this.tick();
+  }
+  el_(tag,cls,text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
+  propView(pr){ return pr.kind==="toggle"?this.toggleRow(pr):pr.kind==="choice"?this.choiceRow(pr):this.sliderRow(pr); }
+  toggleRow(pr){
+    const row=this.el_("div","toggle"); row.appendChild(this.el_("span",null,pr.label)); row.appendChild(this.el_("span","sw"));
+    const set=()=>row.classList.toggle("on",pr.get()>.5); set();
+    row.onclick=()=>{ pr.set(pr.get()>.5?0:1); set(); this.host.onChange(pr); };
+    this.refreshers.push(set); return row;
+  }
+  choiceRow(pr){
+    const row=this.el_("div","choice"); row.appendChild(this.el_("span",null,pr.label));
+    const sel=document.createElement("select"); pr.options.forEach((o,i)=>{ const op=document.createElement("option"); op.value=i; op.textContent=o; sel.appendChild(op); });
+    sel.value=Math.round(pr.get()); sel.onchange=()=>{ if(!this.suppress){ pr.set(+sel.value); this.onStructural(pr); } };
+    row.appendChild(sel); this.refreshers.push(()=>{ sel.value=Math.round(pr.get()); }); return row;
+  }
+  onStructural(pr){ if(this.tab===1) this.rebuild(); this.host.onChange(pr); if(pr.key==="family"||pr.key==="julia") this.host.afterPreset(); }
+  sliderRow(pr){
+    const box=this.el_("div","row"), top=this.el_("div","top"), lab=this.el_("span",null,pr.label), val=this.el_("span","val");
+    top.appendChild(lab); top.appendChild(val); box.appendChild(top);
+    const steps=1000, inp=document.createElement("input"); inp.type="range"; inp.min=0; inp.max=steps; inp.step=1;
+    const toBar=v=> pr.log&&pr.min>0 ? Math.round(Math.log(v/pr.min)/Math.log(pr.max/pr.min)*steps) : Math.round((v-pr.min)/(pr.max-pr.min)*steps);
+    const fromBar=b=>{ const t=b/steps; let v= pr.log&&pr.min>0 ? pr.min*Math.pow(pr.max/pr.min,t) : pr.min+(pr.max-pr.min)*t; if(pr.kind==="int") v=Math.round(v); return v; };
+    const show=()=>{ val.textContent= pr.kind==="int"?String(Math.round(pr.get())):pr.fmt(pr.get()); };
+    inp.value=clamp(toBar(pr.get()),0,steps); show();
+    inp.oninput=()=>{ if(!this.suppress){ pr.set(fromBar(+inp.value)); show(); this.host.onChange(pr); } };
+    box.appendChild(inp);
+    if(pr.help){ box.appendChild(this.el_("div","help",pr.help)); }
+    this.refreshers.push(()=>{ inp.value=clamp(toBar(pr.get()),0,steps); show(); });
+    return box;
+  }
+  btn(text,onClick,pink=false){ const b=this.el_("button","btn"+(pink?" pink":""),text); b.onclick=onClick; return b; }
+  btnRow(...bs){ const r=this.el_("div","btnrow"); bs.forEach(b=>r.appendChild(b)); return r; }
+  buildSwings(c){
+    const p=this.p;
+    c.appendChild(this.el_("div","note","Every parameter below oscillates on its own: centre ± amplitude over a period, with a shape, a phase, and optionally an audio signal added on top. Tap a card to open it."));
+    c.appendChild(this.btnRow(this.btn("Open all",()=>{ p.swings.forEach(s=>this.expanded.add(s.id)); this.rebuild(); }), this.btn("Close all",()=>{ this.expanded.clear(); this.rebuild(); }), this.btn("Reset swings",()=>{ p.swings.forEach(s=>s.reset()); p.resetView(); this.rebuild(); })));
+    const rel=p.swings.filter(s=>p.swingRelevant(s)), oth=p.swings.filter(s=>!p.swingRelevant(s));
+    for(const s of rel) c.appendChild(this.swingCard(s,true));
+    if(oth.length){ c.appendChild(this.el_("div","sec","Not used by the current fractal / colour settings")); for(const s of oth) c.appendChild(this.swingCard(s,false)); }
+  }
+  swingCard(s,relevant){
+    const card=this.el_("div","card"+(relevant?"":" dim")), head=this.el_("div","chead"), name=this.el_("b",null,s.label), ro=this.el_("span","ro"), sw=this.el_("span","sw");
+    if(!relevant) name.style.color="var(--dim)";
+    head.appendChild(name); head.appendChild(ro); head.appendChild(sw); card.appendChild(head);
+    const setSw=()=>head.classList.toggle("on",s.on); setSw(); head.classList.add("toggle"); head.style.padding="0";
+    sw.onclick=e=>{ e.stopPropagation(); s.on=!s.on; setSw(); };
+    head.onclick=()=>{ if(this.expanded.has(s.id)) this.expanded.delete(s.id); else this.expanded.add(s.id); this.rebuild(); };
+    if(this.expanded.has(s.id)){ const body=this.el_("div"); for(const pr of this.p.swingProps(s)) if(pr.key!==s.id+".on") body.appendChild(this.propView(pr)); card.appendChild(body); }
+    this.readouts.push(()=>{ ro.textContent=fmt(s.value)+s.unit+"  ("+WAVE_LABELS[s.wave].toLowerCase()+" "+s.center.toFixed(2)+" ± "+s.amp.toFixed(2)+" / "+s.period.toFixed(0)+"s)"; });
+    this.refreshers.push(setSw);
+    return card;
+  }
+  buildAudio(c){
+    const p=this.p, host=this.host;
+    c.appendChild(this.el_("div","note","React to music. The browser can't hear what the phone or PC is playing on its own, so pick a source: the microphone (works everywhere), or on desktop Chrome/Edge, the audio of another tab — choose the tab playing music and tick \"Share tab audio\"."));
+    c.appendChild(this.btnRow(this.btn("🎤 Microphone",()=>host.startAudio("mic")), this.btn("🖥 Tab audio",()=>host.startAudio("tab")), this.btn("Stop",()=>host.stopAudio(),true)));
+    const st=this.el_("div","status"); this.readouts.push(()=>{ st.textContent=host.audioStatus(); }); c.appendChild(st);
+    c.appendChild(this.el_("div","note","Global mappings below; any swing can also follow a signal — open a swing and set its Audio link."));
+    for(const pr of p.audioProps) c.appendChild(this.propView(pr));
+  }
+  buildPresets(c){
+    const p=this.p, host=this.host;
+    c.appendChild(this.el_("div","sec","Built-in looks"));
+    for(let i=0;i<PRESETS.length;i+=2){
+      const mk=j=>this.btn(PRESETS[j].name,()=>{ applyPreset(j,p); host.afterPreset(); this.refresh(); host.hint(PRESETS[j].blurb,3000); });
+      c.appendChild(i+1<PRESETS.length?this.btnRow(mk(i),mk(i+1)):this.btnRow(mk(i)));
+    }
+    c.appendChild(this.el_("div","sec","Generate"));
+    c.appendChild(this.btnRow(this.btn("Randomize",()=>{ p.randomize(); host.afterPreset(); this.refresh(); host.hint("Random: "+FAMILIES[p.family]+" · "+MODES[p.julia===1?0:1],2000); }), this.btn("Same fractal, new look",()=>{ p.randomize(true); host.afterPreset(); this.refresh(); }), this.btn("Mutate",()=>{ p.mutate(); host.afterPreset(); this.refresh(); })));
+    c.appendChild(this.btnRow(this.btn("Reset view",()=>{ p.resetView(); this.refresh(); }), this.btn("Reset everything",()=>{ p.resetAll(); host.afterPreset(); this.refresh(); },true)));
+    c.appendChild(this.el_("div","sec","Your presets (saved in this browser)"));
+    const names=host.userPresetNames();
+    if(!names.length) c.appendChild(this.el_("div","note","None saved yet."));
+    for(const n of names) c.appendChild(this.btnRow(this.btn(n,()=>{ host.loadUserPreset(n); this.refresh(); }), this.btn("Delete",()=>{ if(confirm('Delete "'+n+'"?')){ host.deleteUserPreset(n); this.rebuild(); } },true)));
+    c.appendChild(this.btnRow(this.btn("Save current as…",()=>{ const n=prompt("Preset name"); if(n&&n.trim()){ host.saveUserPreset(n.trim()); this.rebuild(); } })));
+    c.appendChild(this.el_("div","sec","Share"));
+    c.appendChild(this.btnRow(this.btn("Copy link to this look",()=>host.copyLink()), this.btn("Copy settings (JSON)",()=>host.copyJson()), this.btn("Paste settings",()=>host.pasteJson())));
+    c.appendChild(this.el_("div","note","Settings JSON is interchangeable with the Android app's Copy/Paste settings."));
+    c.appendChild(this.el_("div","sec","Android app"));
+    const a=this.el_("a","btn","⬇ Download "+APK_LABEL); a.href=APK_URL; a.setAttribute("download","");
+    const d=this.el_("a","btn","Docs & source"); d.href=DOCS_URL; d.target="_blank"; d.rel="noopener";
+    c.appendChild(this.btnRow(a,d));
+    c.appendChild(this.el_("div","note","The APK is the full app: it listens to whatever the phone is playing (no microphone needed) and renders at native speed. Sideload: open the APK and allow installs from your browser."));
+  }
+}
+
+// ============================================================ app
+(function main(){
+  const canvas=document.getElementById("gl");
+  const params=new Params();
+  const audio=new AudioIn();
+  const hintEl=document.getElementById("hint"); let hintTimer=0;
+  const hint=(t,ms=2000)=>{ hintEl.textContent=t; hintEl.classList.remove("hidden"); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.add("hidden"),ms); };
+  // load state: URL hash > localStorage > first preset
+  let loaded=false;
+  try{ const m=location.hash.match(/p=([^&]+)/); if(m){ params.fromJson(JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,"+").replace(/_/g,"/")))))); loaded=true; } }catch(e){}
+  if(!loaded){ try{ const js=localStorage.getItem("fs.current"); if(js){ params.fromJson(JSON.parse(js)); loaded=true; } }catch(e){} }
+  if(!loaded) applyPreset(0,params);
+  params.audioOn=false;
+  const renderer=new Renderer(canvas,params,audio);
+  if(!renderer.gl){ document.getElementById("nogl").style.display="flex"; return; }
+  try{ const s=parseFloat(localStorage.getItem("fs.scale")); if(s>0) renderer.scale=clamp(s,.3,1); }catch(e){}
+  const fixed=params.renderScaleFor(); if(fixed>0) renderer.scale=fixed;
+
+  const host={
+    statusLine(){ const a=params.audioOn?this.audioStatus():"audio off"; return FAMILIES[params.family]+" · "+MODES[params.julia===1?0:1]+" · "+Math.round(renderer.fps)+" fps @ "+Math.round(renderer.scale*100)+"% · "+a; },
+    audioStatus(){ if(!params.audioOn) return "Off"; if(audio.err) return audio.err; if(!audio.running) return "Starting…"; const now=performance.now()/1000; if(now-audio.lastSound>1.5) return "Listening ("+(audio.kind==="tab"?"tab":"mic")+") · play something"; return "Listening ("+(audio.kind==="tab"?"tab":"mic")+") · level "+Math.round(audio.level*100)+"% · bass "+Math.round(audio.bass*100)+"% · beats "+audio.beatCount; },
+    async startAudio(kind){ params.audioOn=true; await audio.start(kind); if(audio.err){ params.audioOn=false; hint(audio.err,3500); } panel.tick(); },
+    stopAudio(){ audio.stop(); params.audioOn=false; panel.tick(); },
+    afterPreset(){ renderer.clearHistory(); },
+    onChange(pr){ if(pr.key==="quality"){ const f=params.renderScaleFor(); if(f>0) renderer.setScale(f); } },
+    hint,
+    userPresetNames(){ return Object.keys(this.userPresets()).sort(); },
+    userPresets(){ try{ return JSON.parse(localStorage.getItem("fs.userPresets")||"{}"); }catch(e){ return {}; } },
+    saveUserPreset(n){ const o=this.userPresets(); o[n]=params.toJson(); localStorage.setItem("fs.userPresets",JSON.stringify(o)); hint('Saved "'+n+'"'); },
+    loadUserPreset(n){ const o=this.userPresets()[n]; if(o){ params.fromJson(o); renderer.clearHistory(); hint('Loaded "'+n+'"'); } },
+    deleteUserPreset(n){ const o=this.userPresets(); delete o[n]; localStorage.setItem("fs.userPresets",JSON.stringify(o)); },
+    link(){ const js=JSON.stringify(params.toJson()); const b=btoa(unescape(encodeURIComponent(js))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); return location.origin+location.pathname+"#p="+b; },
+    async copyLink(){ const l=this.link(); history.replaceState(null,"","#p="+l.split("#p=")[1]); try{ await navigator.clipboard.writeText(l); hint("Link copied — it recreates this exact look"); }catch(e){ prompt("Copy this link:",l); } },
+    async copyJson(){ try{ await navigator.clipboard.writeText(JSON.stringify(params.toJson())); hint("Settings copied to the clipboard"); }catch(e){ prompt("Copy these settings:",JSON.stringify(params.toJson())); } },
+    async pasteJson(){ let t=null; try{ t=await navigator.clipboard.readText(); }catch(e){} if(!t) t=prompt("Paste fractalSwing settings JSON:"); if(!t) return; try{ const o=JSON.parse(t); if(!o.swings) throw 0; params.fromJson(o); renderer.clearHistory(); panel.refresh(); hint("Settings pasted"); }catch(e){ hint("That isn't a fractalSwing preset",2500); } }
+  };
+  const panel=new Panel(params,host);
+  const showPanel=localStorage.getItem("fs.panel"); panel.show(showPanel===null?true:showPanel==="1");
+  document.getElementById("fab").onclick=()=>panel.show(!panel.visible);
+  document.getElementById("bHide").onclick=()=>panel.show(false);
+  document.getElementById("bRand").onclick=()=>{ params.randomize(); renderer.clearHistory(); panel.refresh(); hint("Random: "+FAMILIES[params.family]+" · "+MODES[params.julia===1?0:1]); };
+  document.getElementById("bFull").onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); };
+  const snapshot=()=>{ renderer.shotCb=b=>{ if(!b){ hint("Snapshot failed"); return; } const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="fractalSwing-"+new Date().toISOString().replace(/[:.]/g,"-").slice(0,19)+".png"; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); hint("Snapshot saved"); }; };
+  document.getElementById("bSnap").onclick=snapshot;
+  if(!localStorage.getItem("fs.seenHint")){ hint("Drag to pan · pinch or wheel to zoom · twist to rotate · tap to hide/show controls · hold or R for a random look",6500); localStorage.setItem("fs.seenHint","1"); }
+
+  // ---- gestures
+  const ptrs=new Map(); let downT=0, downX=0, downY=0, moved=false, lastTap=0, longTimer=0, pinchD=0, pinchA=0;
+  const wrapAngle=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
+  const pan=(dx,dy)=>{ const scale=1.5*Math.pow(2,-params.zoom.value), upp=2*scale/canvas.clientHeight, vx=dx*upp, vy=-dy*upp, r=params.rot.value+params.spin*renderer.animT*Math.PI/180, c=Math.cos(r), s=Math.sin(r);
+    params.panX.center=clamp(params.panX.center-(vx*c-vy*s),params.panX.min,params.panX.max); params.panY.center=clamp(params.panY.center-(vx*s+vy*c),params.panY.min,params.panY.max); params.panX.drift=0; params.panY.drift=0; };
+  const two=()=>{ const a=[...ptrs.values()]; return {d:Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y), ang:Math.atan2(a[1].y-a[0].y,a[1].x-a[0].x)}; };
+  canvas.addEventListener("pointerdown",e=>{ canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){ downT=performance.now(); downX=e.clientX; downY=e.clientY; moved=false; clearTimeout(longTimer); longTimer=setTimeout(()=>{ if(!moved&&ptrs.size===1){ moved=true; params.randomize(); renderer.clearHistory(); panel.refresh(); hint("Random: "+FAMILIES[params.family]+" · "+MODES[params.julia===1?0:1]); } },600); }
+    else if(ptrs.size===2){ clearTimeout(longTimer); moved=true; const t=two(); pinchD=t.d; pinchA=t.ang; } });
+  canvas.addEventListener("pointermove",e=>{ const pt=ptrs.get(e.pointerId); if(!pt) return; const dx=e.clientX-pt.x, dy=e.clientY-pt.y; pt.x=e.clientX; pt.y=e.clientY;
+    if(ptrs.size===1){ if(!moved&&Math.hypot(e.clientX-downX,e.clientY-downY)>8){ moved=true; clearTimeout(longTimer); } if(moved) pan(dx,dy); }
+    else if(ptrs.size===2){ const t=two(); if(pinchD>0){ params.zoom.center=clamp(params.zoom.center+Math.log2(t.d/pinchD),params.zoom.min,params.zoom.max); params.zoom.drift=0; } let da=t.ang-pinchA; if(da>Math.PI) da-=2*Math.PI; if(da<-Math.PI) da+=2*Math.PI; params.rot.center=wrapAngle(params.rot.center-da); params.rot.drift=0; pinchD=t.d; pinchA=t.ang; } });
+  const up=e=>{ if(!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId); clearTimeout(longTimer);
+    if(ptrs.size===0&&!moved&&performance.now()-downT<350){ const now=performance.now(); if(now-lastTap<320){ params.resetView(); panel.refresh(); hint("View reset",1200); lastTap=0; } else { lastTap=now; setTimeout(()=>{ if(lastTap===now){ panel.show(!panel.visible); } },330); } }
+    if(ptrs.size===1){ const a=[...ptrs.values()][0]; downX=a.x; downY=a.y; moved=true; } };
+  canvas.addEventListener("pointerup",up); canvas.addEventListener("pointercancel",up);
+  canvas.addEventListener("wheel",e=>{ e.preventDefault(); params.zoom.center=clamp(params.zoom.center-e.deltaY*.0015,params.zoom.min,params.zoom.max); params.zoom.drift=0; },{passive:false});
+  window.addEventListener("keydown",e=>{ if(e.target&&(e.target.tagName==="INPUT"||e.target.tagName==="SELECT"||e.target.tagName==="TEXTAREA")) return; const k=e.key.toLowerCase();
+    if(k==="h") panel.show(!panel.visible); else if(k==="r") document.getElementById("bRand").click(); else if(k==="s") snapshot(); else if(k==="f") document.getElementById("bFull").click(); else if(k===" "){ params.paused=!params.paused; panel.refresh(); hint(params.paused?"Swings frozen":"Swings running",1000); e.preventDefault(); } else if(k==="escape") panel.show(false); });
+
+  // ---- loop + persistence
+  let lastTick=0, lastSave=0;
+  function loop(t){ renderer.frame(t); if(t-lastTick>250){ lastTick=t; if(panel.visible) panel.tick(); if(renderer.err&&t-lastErr>8000){ lastErr=t; hint("GL: "+renderer.err,6000); } } if(t-lastSave>5000){ lastSave=t; save(); } requestAnimationFrame(loop); }
+  let lastErr=0;
+  function save(){ try{ localStorage.setItem("fs.current",JSON.stringify(params.toJson())); localStorage.setItem("fs.scale",String(renderer.scale)); }catch(e){} }
+  window.addEventListener("pagehide",save); document.addEventListener("visibilitychange",()=>{ if(document.hidden) save(); });
+  window.addEventListener("resize",()=>renderer.resize());
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

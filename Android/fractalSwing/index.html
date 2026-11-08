@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>fractalSwing · play in your browser or on Android</title>
+<meta name="description" content="fractalSwing: an interactive fractal animation generator. Eleven fractal families, every parameter on a live-adjustable swing, audio-reactive. Play in the browser or sideload the Android APK.">
+<style>
+  :root { --ink: #f2f2fa; --cyan: #7cf2ff; --pink: #ff5cc8; --gold: #ffd54a; --deep: #07070f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--deep); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .veil { position: fixed; inset: 0; background: radial-gradient(80% 60% at 50% 40%, rgba(7,7,15,.25) 0%, rgba(7,7,15,.78) 100%); pointer-events: none; }
+  main { position: relative; z-index: 1; min-height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 48px 22px 64px; }
+  .eyebrow { letter-spacing: .32em; text-transform: uppercase; font-size: 12px; color: var(--cyan); opacity: .9; }
+  h1 { font-weight: 200; font-size: clamp(56px, 14vw, 140px); margin: 6px 0 4px; letter-spacing: .02em;
+    text-shadow: 0 0 28px rgba(124, 242, 255, .5); }
+  h1 b { font-weight: 500; color: var(--cyan); }
+  .tag { max-width: 36em; font-size: 17px; line-height: 1.55; opacity: .92; margin: 0 auto 28px; text-shadow: 0 1px 12px rgba(0,0,0,.8); }
+  .live { display: inline-block; margin-bottom: 26px; padding: 7px 16px; border-radius: 999px; font-size: 13px;
+    border: 1px solid rgba(124, 242, 255, .55); color: var(--cyan); background: rgba(124, 242, 255, .08); }
+  .live b { font-weight: 600; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 34px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px;
+    text-decoration: none; color: var(--deep); background: var(--cyan); font-weight: 600; font-size: 16px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 10px 36px rgba(124, 242, 255, .3); transition: transform .15s ease; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { background: rgba(7,7,15,.55); color: var(--ink); box-shadow: 0 0 0 1px rgba(124,242,255,.45) inset; backdrop-filter: blur(6px); }
+  .meta { font-size: 12.5px; opacity: .7; margin-top: -18px; margin-bottom: 34px; text-shadow: 0 1px 8px rgba(0,0,0,.9); }
+  .meta a { color: inherit; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; width: min(980px, 100%); }
+  .card { text-align: left; padding: 16px 16px 14px; border-radius: 16px; background: rgba(7, 7, 15, .66);
+    box-shadow: 0 0 0 1px rgba(124, 242, 255, .16) inset; backdrop-filter: blur(6px); }
+  .card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--pink); letter-spacing: .02em; }
+  .card p { margin: 0; font-size: 13.5px; line-height: 1.5; opacity: .9; }
+  footer { margin-top: 34px; font-size: 12px; opacity: .6; text-shadow: 0 1px 8px rgba(0,0,0,.9); }
+  footer a { color: inherit; }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<main>
+  <div class="eyebrow">HomeBrewGames · Android &amp; web</div>
+  <h1>fractal<b>Swing</b></h1>
+  <p class="tag">An interactive fractal animation generator. Eleven fractal families, every parameter on a swing you tune
+    while it runs, and audio sync so the whole thing moves to your music. The background of this page is the real thing.</p>
+  <div class="live"><b>Playable in your browser.</b> The Android build hears what your phone is playing.</div>
+  <div class="cta">
+    <a class="btn" href="play/index.html">▶ Play in your browser</a>
+    <a class="btn ghost" href="1.0.0/fractalSwing-v1.0.0.apk" download>⬇ Download for Android · v1.0.0</a>
+  </div>
+  <div class="meta">0.9 MB · Android 8.0+ · WebGL2 on the web · no ads, no tracking · <a href="https://github.com/timmseth/homebrewgames/blob/main/Android/fractalSwing/README.md">how to use &amp; install</a> · <a href="https://github.com/timmseth/homebrewgames/blob/main/Android/fractalSwing/CHANGELOG.md">changelog</a></div>
+  <section class="grid" aria-label="Features">
+    <div class="card"><h3>Eleven fractals</h3><p>Quadratic, Burning Ship, Tricorn, Multibrot, Phoenix, Celtic, Ducks, Kali, Newton, Box Fold and Sine, each in Julia or Mandelbrot form.</p></div>
+    <div class="card"><h3>Sixteen swings</h3><p>Centre, amplitude, period, shape and phase for the constant, zoom, rotation, colour, orbit trap, kaleidoscope and feedback. Nudge them live.</p></div>
+    <div class="card"><h3>Audio sync</h3><p>Beats kick the zoom and flash the screen, bass shifts the colour, treble feeds the glow. Any swing can ride any band.</p></div>
+    <div class="card"><h3>Trippy FX</h3><p>Video feedback trails, kaleidoscope, glow, chromatic aberration, grain and scanlines, all on their own sliders.</p></div>
+    <div class="card"><h3>Twelve looks</h3><p>From Julia Pendulum to Feedback Storm. Randomize, mutate, save your own, and copy a look between the phone and the browser.</p></div>
+    <div class="card"><h3>Pure GPU</h3><p>Fragment-shader fractals in OpenGL ES 3 on Android and WebGL2 on the web, with adaptive resolution to stay smooth.</p></div>
+  </section>
+  <footer>Made by Seth · built with Claude · <a href="https://github.com/timmseth/homebrewgames/blob/main/Android/fractalSwing/docs/DESIGN.md">design doc</a></footer>
+</main>
+<script>
+(() => {
+  // The page background is a live Julia set: the "Julia Pendulum" preset's swings, in a trimmed single-pass shader.
+  const cv = document.getElementById('bg');
+  const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false });
+  if (!gl) { cv.style.background = 'radial-gradient(60% 50% at 50% 45%, #1a0f3a, #07070f)'; return; }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const VS = `#version 300 es
+out vec2 vNdc;
+void main(){ vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)) * 2.0 - 1.0; vNdc = p; gl_Position = vec4(p, 0.0, 1.0); }`;
+  const FS = `#version 300 es
+precision highp float;
+in vec2 vNdc; out vec4 fragColor;
+uniform vec2 uRes; uniform vec2 uC; uniform float uScale; uniform float uRot; uniform float uOff;
+const float PI = 3.14159265359;
+vec3 pal(float t){ return vec3(0.5) + 0.5 * cos(2.0 * PI * (t + vec3(0.3, 0.2, 0.2))); }
+void main(){
+  vec2 q = vNdc * vec2(uRes.x / uRes.y, 1.0);
+  float cr = cos(uRot), sr = sin(uRot);
+  vec2 z = vec2(q.x * cr - q.y * sr, q.x * sr + q.y * cr) * uScale;
+  int i = 0; bool esc = false;
+  for (i = 0; i < 110; i++) { z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + uC; if (dot(z, z) > 256.0) { esc = true; break; } }
+  vec3 col;
+  if (esc) { float lz = 0.5 * log(dot(z, z)); float n = float(i) + 1.0 - log(lz / log(16.0)) / log(2.0); col = pal(sqrt(max(n, 0.0)) * 0.18 * 1.2 + uOff); }
+  else col = vec3(0.02, 0.02, 0.05);
+  float d = dot(vNdc, vNdc); col *= 1.0 - 0.25 * d;
+  fragColor = vec4(col, 1.0);
+}`;
+  function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+  let prog; try { prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog)); } catch (e) { return; }
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(6), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.useProgram(prog);
+  const u = n => gl.getUniformLocation(prog, n);
+  const uRes = u('uRes'), uC = u('uC'), uScale = u('uScale'), uRot = u('uRot'), uOff = u('uOff');
+  const pend = x => { const s = Math.sin(2 * Math.PI * x); return Math.sign(s) * Math.pow(Math.abs(s), .55); };
+  function size() { const dpr = Math.min(devicePixelRatio || 1, 2) * 0.5; cv.width = Math.max(64, Math.round(innerWidth * dpr)); cv.height = Math.max(64, Math.round(innerHeight * dpr)); gl.viewport(0, 0, cv.width, cv.height); }
+  addEventListener('resize', size); size();
+  let last = 0;
+  function frame(ms) {
+    const t = reduce ? 0 : ms / 1000;
+    if (ms - last > 33 || reduce) {
+      last = ms;
+      gl.uniform2f(uRes, cv.width, cv.height);
+      gl.uniform2f(uC, -0.745 + 0.11 * pend(t / 19), 0.16 + 0.17 * Math.sin(2 * Math.PI * (t / 13 + 0.25)));
+      gl.uniform1f(uScale, 1.5 * Math.pow(2, -(0.2 + 0.35 * Math.sin(2 * Math.PI * t / 37))));
+      gl.uniform1f(uRot, 0.2 * Math.sin(2 * Math.PI * t / 29));
+      gl.uniform1f(uOff, 0.015 * t);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
