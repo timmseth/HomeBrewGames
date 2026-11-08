@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dive · web version coming soon</title>
+<meta name="description" content="Dive: a zen, tilt-controlled descent into an endless ocean that becomes a sea of fractals. Android APK available now; web version coming soon.">
+<style>
+  :root { --ink: #e9fffb; --mint: #5cf2e0; --gold: #ffd36e; --coral: #ff6f9a; --deep: #04101e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--deep); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  main { position: relative; z-index: 1; min-height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 48px 22px 64px; }
+  .eyebrow { letter-spacing: .32em; text-transform: uppercase; font-size: 12px; color: var(--mint); opacity: .85; }
+  h1 { font-weight: 200; font-size: clamp(64px, 16vw, 148px); margin: 6px 0 4px; letter-spacing: .04em;
+    text-shadow: 0 0 28px rgba(92, 242, 224, .45); }
+  .tag { max-width: 34em; font-size: 17px; line-height: 1.55; opacity: .9; margin: 0 auto 28px; }
+  .soon { display: inline-block; margin-bottom: 26px; padding: 7px 16px; border-radius: 999px; font-size: 13px;
+    border: 1px solid rgba(255, 211, 110, .55); color: var(--gold); background: rgba(255, 211, 110, .07); }
+  .soon b { font-weight: 600; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 34px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px;
+    text-decoration: none; color: var(--deep); background: var(--mint); font-weight: 600; font-size: 16px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 10px 36px rgba(92, 242, 224, .28); transition: transform .15s ease; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { background: rgba(255,255,255,.04); color: var(--ink); box-shadow: 0 0 0 1px rgba(92,242,224,.45) inset; }
+  .meta { font-size: 12.5px; opacity: .65; margin-top: -18px; margin-bottom: 34px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; width: min(980px, 100%); }
+  .card { text-align: left; padding: 16px 16px 14px; border-radius: 16px; background: rgba(4, 18, 34, .62);
+    box-shadow: 0 0 0 1px rgba(92, 242, 224, .16) inset; backdrop-filter: blur(6px); }
+  .card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--mint); letter-spacing: .02em; }
+  .card p { margin: 0; font-size: 13.5px; line-height: 1.5; opacity: .88; }
+  footer { margin-top: 34px; font-size: 12px; opacity: .55; }
+  footer a { color: inherit; }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="sea" aria-hidden="true"></canvas>
+<main>
+  <div class="eyebrow">HomeBrewGames · Android</div>
+  <h1>Dive</h1>
+  <p class="tag">A zen, tilt-controlled descent into an endless ocean that slowly becomes a sea of fractals.
+    Eat what's smaller, avoid what's bigger, reshape yourself, and sink as deep as you dare.</p>
+  <div class="soon"><b>Web version coming soon.</b> The Android build is ready now.</div>
+  <div class="cta">
+    <a class="btn" href="1.3.0/dive-v1.3.0.apk" download>⬇ Download for Android · v1.3.0</a>
+    <a class="btn ghost" href="README.md">How to play &amp; install</a>
+  </div>
+  <div class="meta">1.0 MB · Android 8.0+ · no ads, no tracking · <a href="CHANGELOG.md" style="color:inherit">changelog</a></div>
+  <section class="grid" aria-label="Features">
+    <div class="card"><h3>Flow, tuned to you</h3><p>Depth is difficulty. A hidden director keeps the challenge right at your edge, never boring, never brutal.</p></div>
+    <div class="card"><h3>Always a bigger fish</h3><p>Everything is sized relative to you. Grow 8× and the ocean quietly rescales around you.</p></div>
+    <div class="card"><h3>Spore-style Shaper</h3><p>Drag jaws, fins, eyes, spikes, glow and Brood Pods onto your body. Every part changes how you swim.</p></div>
+    <div class="card"><h3>The Brood</h3><p>Harvesters tether prey and reel it in, even while the app is closed. Seven idle upgrade tracks.</p></div>
+    <div class="card"><h3>Music visualizer</h3><p>Autopilot drifts on its own while the fractal sea pulses to Dive's generated lofi, your phone's music, or a folder of tracks.</p></div>
+    <div class="card"><h3>Zen stakes</h3><p>You never die. Bites cost segments, which regrow. One hand, portrait, tilt or a floating joystick.</p></div>
+  </section>
+  <footer>Made by Seth · built with Claude · <a href="docs/DESIGN.md">design doc</a></footer>
+</main>
+<script>
+(() => {
+  const cv = document.getElementById('sea'), cx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, DPR = 1;
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR; }
+  addEventListener('resize', size); size();
+
+  // plankton
+  const motes = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .7, p: Math.random() * 6.28 }));
+  // a little segmented creature that wanders
+  const segs = Array.from({ length: 6 }, (_, i) => ({ x: .5, y: .62 + i * .02 }));
+  let hx = .5, hy = .6, ang = -Math.PI / 2, t = 0;
+  // small prey to chase
+  const prey = Array.from({ length: 9 }, () => ({ x: Math.random(), y: Math.random(), a: Math.random() * 6.28 }));
+
+  function fractal(time) {
+    // slow kaleidoscopic line field in the deep background
+    const c = Math.min(W, H) * .62, ox = W / 2, oy = H * .58;
+    cx.save(); cx.translate(ox, oy); cx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 6; k++) {
+      cx.rotate(Math.PI / 3);
+      for (let d = 0; d < 3; d++) {
+        const s = c * (0.33 + d * 0.27), wob = Math.sin(time * .15 + d + k) * .25;
+        cx.beginPath();
+        for (let i = 0; i <= 60; i++) {
+          const u = i / 60, a = u * Math.PI / 3 + wob;
+          const r = s * (0.55 + 0.45 * Math.cos(5 * u * Math.PI + time * .2 + d));
+          const x = Math.cos(a) * r, y = Math.sin(a) * r * 0.62;
+          i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+        }
+        const hue = 230 + d * 28 + Math.sin(time * .05) * 20;
+        cx.strokeStyle = `hsla(${hue}, 80%, 62%, ${0.05 + d * 0.025})`;
+        cx.lineWidth = (1.2 + d) * DPR; cx.stroke();
+      }
+    }
+    cx.restore();
+  }
+
+  function poly(x, y, r, n, rot, fill, stroke) {
+    cx.beginPath();
+    for (let i = 0; i < n; i++) { const a = rot + i * 2 * Math.PI / n; const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; i ? cx.lineTo(px, py) : cx.moveTo(px, py); }
+    cx.closePath(); cx.fillStyle = fill; cx.fill(); cx.strokeStyle = stroke; cx.lineWidth = 1.5 * DPR; cx.stroke();
+  }
+
+  function frame(ms) {
+    const dt = 1 / 60; t = ms / 1000;
+    // water
+    const g = cx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0b4f5a'); g.addColorStop(.45, '#0a2448'); g.addColorStop(1, '#0a0420');
+    cx.globalCompositeOperation = 'source-over'; cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+    fractal(t);
+    // plankton
+    cx.globalCompositeOperation = 'lighter';
+    for (const m of motes) {
+      m.y -= .0003 * m.z; if (m.y < -.02) m.y = 1.02;
+      const x = (m.x + Math.sin(t * .3 + m.p) * .01) * W, y = m.y * H;
+      cx.fillStyle = `rgba(180,255,240,${.18 * m.z})`; cx.beginPath(); cx.arc(x, y, 1.6 * m.z * DPR, 0, 6.28); cx.fill();
+    }
+    // prey drift
+    let tgt = null, best = 9;
+    for (const p of prey) {
+      p.a += (Math.random() - .5) * .1; p.x += Math.cos(p.a) * .0006; p.y += Math.sin(p.a) * .0006;
+      if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) { p.x = Math.random(); p.y = Math.random(); }
+      const d = Math.hypot(p.x - hx, p.y - hy); if (d < best) { best = d; tgt = p; }
+      poly(p.x * W, p.y * H, 5 * DPR, 3, p.a, 'rgba(110,200,255,.55)', 'rgba(170,230,255,.9)');
+    }
+    // creature steers toward nearest prey, eats it
+    if (!reduce && tgt) {
+      const want = Math.atan2((tgt.y - hy) * H, (tgt.x - hx) * W);
+      let dA = want - ang; while (dA > Math.PI) dA -= 6.283; while (dA < -Math.PI) dA += 6.283;
+      ang += dA * .03; const sp = .0011;
+      hx += Math.cos(ang) * sp * (H / W); hy += Math.sin(ang) * sp;
+      if (best < .02) { tgt.x = Math.random(); tgt.y = Math.random(); }
+    }
+    segs[0].x = hx; segs[0].y = hy;
+    for (let i = 1; i < segs.length; i++) {
+      const a = segs[i - 1], b = segs[i];
+      const dx = (b.x - a.x) * W, dy = (b.y - a.y) * H, l = Math.hypot(dx, dy) || 1, sp = (22 - i * 2) * DPR;
+      b.x = a.x + dx / l * sp / W; b.y = a.y + dy / l * sp / H;
+    }
+    for (let i = segs.length - 1; i >= 0; i--) {
+      const s = segs[i], r = (16 - i * 1.7) * DPR, x = s.x * W, y = s.y * H;
+      const glow = cx.createRadialGradient(x, y, 0, x, y, r * 3);
+      glow.addColorStop(0, 'rgba(92,242,224,.25)'); glow.addColorStop(1, 'rgba(92,242,224,0)');
+      cx.fillStyle = glow; cx.beginPath(); cx.arc(x, y, r * 3, 0, 6.28); cx.fill();
+      cx.globalCompositeOperation = 'source-over';
+      poly(x, y, r, i ? 6 : 5, ang + i * .4 + Math.sin(t * 3 + i) * .1, i ? 'rgba(20,90,90,.85)' : 'rgba(40,140,130,.95)', 'rgba(150,255,240,.95)');
+      if (i === 0) { // jaws
+        cx.fillStyle = 'rgba(255,211,110,.95)';
+        for (const s2 of [-1, 1]) { cx.beginPath(); cx.moveTo(x + Math.cos(ang + s2 * .5) * r * .8, y + Math.sin(ang + s2 * .5) * r * .8);
+          cx.lineTo(x + Math.cos(ang + s2 * .12) * r * 1.7, y + Math.sin(ang + s2 * .12) * r * 1.7); cx.lineTo(x + Math.cos(ang) * r * .9, y + Math.sin(ang) * r * .9); cx.fill(); }
+      }
+      cx.globalCompositeOperation = 'lighter';
+    }
+    // a big warm shape passing far below
+    const bx = ((t * .012) % 1.4 - .2) * W, by = H * .85;
+    cx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 9; i++) poly(bx - i * 30 * DPR, by + Math.sin(t * .8 + i * .6) * 8 * DPR, (26 - i * 1.6) * DPR, 6, i * .3, 'rgba(255,111,154,.08)', 'rgba(255,111,154,.22)');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

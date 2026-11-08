@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomeBrewGames</title>
+<style>
+  :root { --ink: #eef6ff; --mint: #5cf2e0; --bg: #0a0f1c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(120% 80% at 50% 0%, #13294a 0%, var(--bg) 60%); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; }
+  main { width: min(860px, 100%); padding: 56px 22px; }
+  h1 { font-weight: 250; font-size: clamp(40px, 9vw, 72px); margin: 0 0 6px; letter-spacing: .02em; }
+  .sub { opacity: .75; margin: 0 0 36px; font-size: 16px; }
+  .game { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: center; padding: 18px; border-radius: 18px;
+    background: rgba(255,255,255,.035); box-shadow: 0 0 0 1px rgba(92,242,224,.18) inset; text-decoration: none; color: inherit; transition: transform .15s ease; }
+  .game:hover { transform: translateY(-2px); }
+  .icon { width: 96px; height: 96px; border-radius: 22px; background: linear-gradient(180deg, #0b5e68, #12062a); display: grid; place-items: center; }
+  .game h2 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+  .game p { margin: 0; opacity: .82; line-height: 1.5; font-size: 14.5px; }
+  .pills { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: rgba(92,242,224,.1); color: var(--mint); }
+  .pill.soon { background: rgba(255,211,110,.1); color: #ffd36e; }
+  footer { margin-top: 40px; font-size: 12px; opacity: .5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>HomeBrewGames</h1>
+  <p class="sub">Self-built games, ready to sideload. No stores, no ads, no tracking.</p>
+  <a class="game" href="Android/Dive/index.html">
+    <div class="icon" aria-hidden="true">
+      <svg width="60" height="60" viewBox="0 0 108 108"><path fill="#5cf2e03a" stroke="#5cf2e0" stroke-width="2.5" d="M54,30 L68,38 L68,54 L54,62 L40,54 L40,38 Z"/><path stroke="#b5fff4" stroke-width="1.4" fill="none" d="M54,30 L54,46 M40,38 L54,46 L68,38 M54,46 L54,62 M40,54 L54,46 L68,54"/><path fill="#5cf2e02a" stroke="#5cf2e0" stroke-width="2" d="M54,64 L62,69 L62,77 L54,82 L46,77 L46,69 Z"/><path fill="#5cf2e022" stroke="#5cf2e0" stroke-width="1.8" d="M54,84 L58.5,87 L58.5,91 L54,94 L49.5,91 L49.5,87 Z"/><path fill="#ffd36e" d="M48,30 L54,22 L60,30 L54,27 Z"/></svg>
+    </div>
+    <div>
+      <h2>Dive</h2>
+      <p>A zen, tilt-controlled descent into an endless ocean that becomes a sea of fractals. Dynamic difficulty, a Spore-style creature Shaper, idle harvesters and a music-visualizer autopilot.</p>
+      <div class="pills"><span class="pill">Android · v1.3.0</span><span class="pill soon">Web · coming soon</span></div>
+    </div>
+  </a>
+  <footer>Made by Seth · built with Claude</footer>
+</main>
+</body>
+</html>

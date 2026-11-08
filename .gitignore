@@ -1,0 +1,7 @@
+# never commit signing material
+*.keystore
+*.jks
+*.p12
+keystore/
+local.properties
+.DS_Store
