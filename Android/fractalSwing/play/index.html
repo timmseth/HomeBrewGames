@@ -267,7 +267,10 @@ void main() {
 
     bool inside;
     float smoothIter;
-#if FRACTAL == 6 || FRACTAL == 7
+#if FRACTAL == 6
+    inside = false;
+    smoothIter = 4.0 * orbitAcc / float(max(n, 1));     // Ducks: the orbit mean varies little, so use it linearly with gain
+#elif FRACTAL == 7
     inside = false;
     smoothIter = 6.0 * orbitAcc / float(max(n, 1));
 #elif FRACTAL == 8
@@ -295,7 +298,11 @@ void main() {
 #endif
 
     float v;
+#if FRACTAL == 6
+    if (uColorMode == 0) v = smoothIter;
+#else
     if (uColorMode == 0) v = sqrt(max(smoothIter, 0.0)) * 0.18;
+#endif
     else if (uColorMode == 1) v = trapMin;
     else if (uColorMode == 2) v = stripeAcc / float(max(i, 1));
     else v = atan(z.y, z.x) / (2.0 * PI) + 0.5;
@@ -446,7 +453,7 @@ const FB_MODES = ["Off","Trails","Screen","Echo"];
 const QUALITY = ["Auto","Low (0.35)","Medium (0.5)","High (0.7)","Full (1.0)"];
 const KALEIDO = ["Off","2","3","4","5","6","7","8","10","12","16"];
 const KALEIDO_N = [0,2,3,4,5,6,7,8,10,12,16];
-const C_BOX = [[-1.2,.6,-.9,.9],[-1.8,.6,-1.2,.6],[-1.2,.8,-.9,.9],[-1,.8,-.9,.9],[-.8,.8,-.8,.6],[-1.4,.6,-.9,.9],[-1.5,1.5,-1.5,1.5],[-1.4,1.4,-1.4,1.4],[-.8,.8,-.8,.8],[-1.5,1.5,-1.5,1.5],[.4,1.6,-.6,.6]];
+const C_BOX = [[-1.2,.6,-.9,.9],[-1.8,.6,-1.2,.6],[-1.2,.8,-.9,.9],[-1,.8,-.9,.9],[-.8,.8,-.8,.6],[-1.4,.6,-.9,.9],[-.4,.3,-1.5,-.6],[-1.2,-.2,-1.3,-.7],[-.8,.8,-.8,.8],[-1.5,1.5,-1.5,1.5],[.4,1.6,-.6,.6]];
 const PALETTES = [
   {name:"Rainbow",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[0,.33,.67]},
   {name:"Aurora",a:[.5,.5,.5],b:[.5,.5,.5],c:[1,1,1],d:[.3,.2,.2]},
@@ -660,7 +667,7 @@ class Params {
     this.extra.center=this.family===8?rf(.6,1.3):rf(.3,.8); this.extra.amp=chance(.4)?rf(.05,.3):0;
     this.hue.amp=chance(.5)?rf(.05,.3):0; this.hue.period=rf(10,60);
     this.trapX.amp=rf(0,.6); this.trapY.amp=rf(0,.6); this.trapX.period=rf(7,30); this.trapY.period=rf(7,30);
-    this.iters = [6,7].includes(this.family)?24+ri(40) : this.family===8?30+ri(40) : this.family===9?20+ri(40) : 60+ri(180);
+    this.iters = this.family===6?30+ri(40) : this.family===7?8+ri(9) : this.family===8?30+ri(40) : this.family===9?10+ri(20) : 60+ri(180);
     this.bailout = this.family===10?50 : this.family===9?64 : 16;
     this.colorMode = [6,7].includes(this.family)?0 : this.family===8?(chance(.5)?3:0) : [0,0,0,1,2][ri(5)];
     this.trapType=ri(3); this.trapMix=chance(.3)?rf(.1,.6):0; this.stripe=rf(1,8);
@@ -699,9 +706,9 @@ class Params {
 // ============================================================ presets (same as the Android app)
 function sw(s,center,amp,period,wave=0,phase=0){ s.center=center; s.amp=amp; s.period=period; s.wave=wave; s.phase=phase; s.on=true; }
 const PRESETS = [
-  {name:"Julia Pendulum",blurb:"The classic quadratic Julia set, its constant swinging on a slow Lissajous path.",apply:p=>{ p.family=0;p.julia=1;p.iters=160;p.bailout=16; sw(p.cx,-.745,.11,19,4); sw(p.cy,.16,.17,13,0,.25); sw(p.zoom,.2,.35,37); sw(p.rot,0,.2,29); p.palette=1;p.density=1.2;p.colorSpeed=.015;p.colorMode=0; p.glow=.6;p.fbMode=1;p.fbDecay=.8;p.fbZoom.center=.008;p.fbRot.center=.003; p.ca=.4;p.vignette=.35;p.grain=.08; p.mapZoomKick=.12;p.mapCa=.6;p.mapFlash=.06; }},
-  {name:"Ducks Pond",blurb:"Samuel Monnier's Ducks: a non-escaping log map that looks like rippling feathers.",apply:p=>{ p.family=6;p.julia=1;p.iters=40; sw(p.cx,-.6,.35,23); sw(p.cy,.9,.3,17,4,.3); sw(p.zoom,.8,.3,41); sw(p.rot,0,0,30); p.spin=1.5; p.palette=2;p.density=.8;p.colorSpeed=.02;p.sat=1.2;p.contrast=1.15; p.glow=.4;p.fbMode=0;p.ca=.2;p.vignette=.4; }},
-  {name:"Kali Cathedral",blurb:"Kaleidoscopic IFS: inversion and folding make glowing gothic lace.",apply:p=>{ p.family=7;p.julia=1;p.iters=28; sw(p.cx,-.9,.25,29,6); sw(p.cy,-.55,.25,23,6); sw(p.zoom,.5,.5,47); p.spin=-2; p.palette=6;p.density=.6;p.sat=1;p.bright=1.1;p.gamma=.9; p.kaleido=4; sw(p.kaleidoRot,0,.6,53); p.glow=1;p.glowRadius=4;p.fbMode=2;p.fbDecay=.7;p.fbZoom.center=-.01; p.ca=.6;p.vignette=.5; }},
+  {name:"Julia Pendulum",blurb:"The classic quadratic Julia set, its constant swinging on a slow Lissajous path.",apply:p=>{ p.family=0;p.julia=1;p.iters=160;p.bailout=16; sw(p.cx,-.76,.09,19,4); sw(p.cy,.12,.12,13,0,.25); sw(p.zoom,.2,.35,37); sw(p.rot,0,.2,29); p.palette=1;p.density=2.5;p.colorSpeed=.015;p.colorMode=0;p.fade=.7; p.glow=.6;p.fbMode=1;p.fbDecay=.8;p.fbZoom.center=.008;p.fbRot.center=.003; p.ca=.4;p.vignette=.35;p.grain=.08; p.mapZoomKick=.12;p.mapCa=.6;p.mapFlash=.06; }},
+  {name:"Ducks Pond",blurb:"Samuel Monnier's Ducks: a non-escaping log map that looks like rippling feathers.",apply:p=>{ p.family=6;p.julia=1;p.iters=50; sw(p.cx,-.1,.15,23); sw(p.cy,-1.05,.2,17,4,.3); sw(p.zoom,.8,.3,41); sw(p.rot,0,0,30); p.spin=1.5; p.palette=2;p.density=.8;p.colorSpeed=.02;p.sat=1.2;p.contrast=1.15; p.glow=.4;p.fbMode=0;p.ca=.2;p.vignette=.4; }},
+  {name:"Kali Cathedral",blurb:"Kaleidoscopic IFS: inversion and folding make glowing gothic lace.",apply:p=>{ p.family=7;p.julia=1;p.iters=11; sw(p.cx,-.55,.08,29,6); sw(p.cy,-1,.1,23,6); sw(p.zoom,.5,.5,47); p.spin=-2; p.palette=6;p.density=.6;p.sat=1;p.bright=1;p.gamma=1; p.kaleido=0; sw(p.kaleidoRot,0,.6,53); p.glow=.8;p.glowRadius=4;p.fbMode=1;p.fbDecay=.7;p.fbZoom.center=-.01; p.ca=.6;p.vignette=.5; }},
   {name:"Burning Drift",blurb:"Burning Ship Julia with a drifting constant and fiery palette.",apply:p=>{ p.family=1;p.julia=1;p.iters=140; sw(p.cx,-.62,.2,31,6); sw(p.cy,-.55,.2,27,6); sw(p.zoom,.4,.4,43); sw(p.rot,3.1416,.15,37); sw(p.panY,-.1,.1,51); p.palette=3;p.density=1.6;p.colorSpeed=-.02;p.contrast=1.2; p.colorMode=0;p.trapMix=.25;p.trapType=1; sw(p.trapX,0,.4,19); sw(p.trapY,0,.4,23); p.glow=.9;p.fbMode=1;p.fbDecay=.85;p.fbZoom.center=.012;p.fbHue=.004; p.ca=.5;p.grain=.2; }},
   {name:"Power Bloom",blurb:"Multibrot Julia whose exponent breathes between 2 and 5.",apply:p=>{ p.family=3;p.julia=1;p.iters=100; sw(p.power,3.5,1.5,26,4); sw(p.cx,.35,.2,17); sw(p.cy,.4,.2,11,0,.25); sw(p.zoom,.1,.3,39); sw(p.rot,0,.3,33); p.palette=4;p.density=1.4;p.colorSpeed=.03;p.colorMode=2;p.stripe=4; p.kaleido=0;p.glow=.7;p.fbMode=3;p.fbDecay=.55;p.ca=.3; }},
   {name:"Newton Petals",blurb:"Newton's method basins, perturbed and relaxed into petals.",apply:p=>{ p.family=8;p.julia=1;p.iters=48; sw(p.cx,.1,.35,29); sw(p.cy,0,.35,23,0,.25); sw(p.extra,1,.35,19,4); sw(p.zoom,-.3,.3,45); p.spin=3; p.palette=0;p.density=1;p.colorMode=3;p.trapMix=.2;p.trapType=0; p.sat=1.2;p.contrast=1.1;p.glow=.5;p.fbMode=0;p.ca=.25;p.vignette=.3; }},
