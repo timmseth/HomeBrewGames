@@ -309,7 +309,7 @@ void main() {
     }
 
 #if FRACTAL != 6 && FRACTAL != 7
-    if (!inside) col *= mix(1.0, smoothstep(0.0, 10.0, smoothIter), uFade);
+    if (!inside) col *= mix(1.0, smoothstep(0.0, 5.0, smoothIter), uFade);
 #endif
 
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
@@ -507,7 +507,7 @@ class Params {
   constructor(){
     Object.assign(this, {
       family:0, julia:1, iters:120, bailout:16, spin:0, timeScale:1, masterAmp:1, drift:0, paused:false, kaleido:0, mirrorX:false, mirrorY:false,
-      colorMode:0, trapType:0, trapMix:0, stripe:3, palette:1, palC:[1,1,1], palD:[0,.33,.67], colorSpeed:.02, density:1, sat:1.1, bright:1, contrast:1.05, gamma:1, fade:.65, bands:0, invert:false, insideMode:0, insideColor:[.02,.02,.05],
+      colorMode:0, trapType:0, trapMix:0, stripe:3, palette:1, palC:[1,1,1], palD:[0,.33,.67], colorSpeed:.02, density:1, sat:1.1, bright:1, contrast:1.05, gamma:1, fade:.5, bands:0, invert:false, insideMode:0, insideColor:[.02,.02,.05],
       glow:.5, glowRadius:3, fbMode:0, fbDecay:.85, fbHue:0, ca:.3, vignette:.35, grain:.1, scan:0, quality:0,
       audioOn:false, reactivity:1, beatSens:1, mapZoomKick:.12, mapHue:0, mapBright:.15, mapGlow:.4, mapFlash:.08, mapCa:.5, mapIters:0
     });
